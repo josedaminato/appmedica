@@ -1,0 +1,80 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: appmedica-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appmedica}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-appmedica_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-appmedica}
+    ports:
+      - "5432:5432"  # CAMBIAR EN PROD: no exponer PostgreSQL al exterior
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appmedica} -d ${POSTGRES_DB:-appmedica}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    # Sin container_name fijo: evita bloqueo si queda un contenedor zombie "appmedica-backend"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-appmedica}:${POSTGRES_PASSWORD:-appmedica_secret}@db:5432/${POSTGRES_DB:-appmedica}
+      UVICORN_RELOAD: ${UVICORN_RELOAD:-0}
+    ports:
+      - "${BACKEND_HOST_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app  # CAMBIAR EN PROD: sin montar código fuente; usar imagen build
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 25s
+    command: >
+      sh -c "alembic upgrade head &&
+             python scripts/seed_demo.py &&
+             if [ \"$$UVICORN_RELOAD\" = \"1\" ]; then
+               uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload;  # CAMBIAR EN PROD: UVICORN_RELOAD=0, sin --reload
+             else
+               uvicorn app.main:app --host 0.0.0.0 --port 8000;
+             fi"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: appmedica-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app  # CAMBIAR EN PROD: build estático (Dockerfile.prod), no dev server
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    command: npm run dev -- --host 0.0.0.0  # CAMBIAR EN PROD: nginx sirve dist en puerto 3000
+
+volumes:
+  postgres_data:
