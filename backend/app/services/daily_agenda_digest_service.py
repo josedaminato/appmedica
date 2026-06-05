@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
-from app.core.timezone import org_timezone
+from app.core.timezone import local_day_bounds_utc, org_timezone
 from app.integrations.reminders.base import ReminderPayload
 from app.integrations.reminders.email_adapter import EmailReminderProvider
 from app.models.appointment import Appointment
@@ -203,15 +203,14 @@ class DailyAgendaDigestService:
 
         target_date = now_local.date() + timedelta(days=1)
         active_statuses = (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED)
-        day_end = target_date + timedelta(days=1)
 
+        # Ventana del día local "mañana" expresada en límites UTC reales, para no
+        # perder los turnos de la noche (que en UTC caen al día siguiente).
+        start_utc, end_utc = local_day_bounds_utc(target_date, tz)
         all_tomorrow = self.appointments.list_in_range(
             org.id,
-            start=datetime.min.replace(tzinfo=timezone.utc),
-            end=datetime.max.replace(tzinfo=timezone.utc),
-            use_date_filter=True,
-            start_date=target_date,
-            end_date=day_end,
+            start=start_utc,
+            end=end_utc,
         )
         tomorrow = [a for a in all_tomorrow if a.status in active_statuses]
 
