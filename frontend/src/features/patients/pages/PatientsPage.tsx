@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
+import { useEffect, useState } from "react"
+import { Link, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileSpreadsheet, Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -30,6 +30,15 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [error, setError] = useState("")
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setDialogOpen(true)
+      searchParams.delete("new")
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const isActive =
     statusFilter === "all" ? undefined : statusFilter === "active"
