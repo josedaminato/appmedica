@@ -4,8 +4,10 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
+from app.core.rbac import assert_can_access_appointment
 from app.models.appointment import Appointment
-from app.models.enums import AppointmentClosureStatus, AppointmentStatus
+from app.models.enums import AppointmentClosureStatus, AppointmentStatus, UserRole
+from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.patient_repository import PatientRepository
 from app.services.appointment_scheduling import assert_no_overlap
@@ -66,24 +68,34 @@ class AppointmentService:
             )
         return [AppointmentResponse.model_validate(a) for a in items]
 
-    def get_appointment(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
+    def get_appointment(
+        self,
+        organization_id: uuid.UUID,
+        appointment_id: uuid.UUID,
+        current_user: User | None = None,
+    ) -> AppointmentResponse:
         appointment = self.repo.get_by_id(organization_id, appointment_id)
         if not appointment:
             raise not_found("Turno")
+        if current_user is not None:
+            assert_can_access_appointment(current_user, appointment)
         return AppointmentResponse.model_validate(appointment)
 
     def create_appointment(
         self,
         organization_id: uuid.UUID,
         data: AppointmentCreate,
-        default_professional_id: uuid.UUID | None,
+        current_user: User,
     ) -> AppointmentResponse:
         if not self.patients.get_by_id(organization_id, data.patient_id):
             raise not_found("Paciente")
         if data.end_at <= data.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
 
-        professional_id = data.professional_id or default_professional_id
+        if current_user.role == UserRole.PROFESSIONAL:
+            professional_id = current_user.id
+        else:
+            professional_id = data.professional_id or current_user.id
         assert_no_overlap(
             self.repo,
             organization_id,
@@ -116,10 +128,12 @@ class AppointmentService:
         organization_id: uuid.UUID,
         appointment_id: uuid.UUID,
         data: AppointmentUpdate,
+        current_user: User,
     ) -> AppointmentResponse:
         appointment = self.repo.get_by_id(organization_id, appointment_id)
         if not appointment:
             raise not_found("Turno")
+        assert_can_access_appointment(current_user, appointment)
         if appointment.status in (AppointmentStatus.CANCELLED, AppointmentStatus.RESCHEDULED):
             raise bad_request("No se puede editar este turno")
 
@@ -127,6 +141,8 @@ class AppointmentService:
             setattr(appointment, field, value)
         if appointment.end_at <= appointment.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
+        # Un profesional no puede reasignar su turno a otro profesional.
+        assert_can_access_appointment(current_user, appointment)
 
         assert_no_overlap(
             self.repo,
@@ -145,6 +161,7 @@ class AppointmentService:
         self,
         organization_id: uuid.UUID,
         appointment_id: uuid.UUID,
+        current_user: User,
         *,
         allowed_from: list[AppointmentStatus],
         new_status: AppointmentStatus,
@@ -152,6 +169,7 @@ class AppointmentService:
         appointment = self.repo.get_by_id(organization_id, appointment_id)
         if not appointment:
             raise not_found("Turno")
+        assert_can_access_appointment(current_user, appointment)
         if appointment.status not in allowed_from:
             raise bad_request(f"No se puede cambiar de {appointment.status.value} a {new_status.value}")
         appointment.status = new_status
@@ -159,57 +177,74 @@ class AppointmentService:
         self.db.commit()
         return self.get_appointment(organization_id, appointment_id)
 
-    def confirm(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
+    def confirm(
+        self, organization_id: uuid.UUID, appointment_id: uuid.UUID, current_user: User,
+    ) -> AppointmentResponse:
         result = self._transition(
             organization_id,
             appointment_id,
+            current_user,
             allowed_from=[AppointmentStatus.PENDING],
             new_status=AppointmentStatus.CONFIRMED,
         )
         ReminderService(self.db).schedule_for_appointment(organization_id, appointment_id)
         return result
 
-    def mark_attended(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
+    def mark_attended(
+        self, organization_id: uuid.UUID, appointment_id: uuid.UUID, current_user: User,
+    ) -> AppointmentResponse:
         return self._transition(
             organization_id,
             appointment_id,
+            current_user,
             allowed_from=[AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
             new_status=AppointmentStatus.ATTENDED,
         )
 
-    def mark_no_show(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
+    def mark_no_show(
+        self, organization_id: uuid.UUID, appointment_id: uuid.UUID, current_user: User,
+    ) -> AppointmentResponse:
         return self._transition(
             organization_id,
             appointment_id,
+            current_user,
             allowed_from=[AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
             new_status=AppointmentStatus.NO_SHOW,
         )
 
-    def cancel(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
-        ReminderService(self.db).cancel_for_appointment(organization_id, appointment_id)
-        return self._transition(
+    def cancel(
+        self, organization_id: uuid.UUID, appointment_id: uuid.UUID, current_user: User,
+    ) -> AppointmentResponse:
+        result = self._transition(
             organization_id,
             appointment_id,
+            current_user,
             allowed_from=[AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
             new_status=AppointmentStatus.CANCELLED,
         )
+        ReminderService(self.db).cancel_for_appointment(organization_id, appointment_id)
+        return result
 
     def reschedule(
         self,
         organization_id: uuid.UUID,
         appointment_id: uuid.UUID,
         data: AppointmentRescheduleRequest,
-        default_professional_id: uuid.UUID | None,
+        current_user: User,
     ) -> AppointmentResponse:
         old = self.repo.get_by_id(organization_id, appointment_id)
         if not old:
             raise not_found("Turno")
+        assert_can_access_appointment(current_user, old)
         if old.status in (AppointmentStatus.CANCELLED, AppointmentStatus.RESCHEDULED):
             raise bad_request("No se puede reprogramar este turno")
         if data.end_at <= data.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
 
-        professional_id = data.professional_id or old.professional_id or default_professional_id
+        if current_user.role == UserRole.PROFESSIONAL:
+            professional_id = current_user.id
+        else:
+            professional_id = data.professional_id or old.professional_id or current_user.id
         assert_no_overlap(
             self.repo,
             organization_id,

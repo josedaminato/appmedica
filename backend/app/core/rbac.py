@@ -26,3 +26,13 @@ def resolve_professional_filter(
     if user.role == UserRole.PROFESSIONAL:
         return user.id
     return requested_professional_id
+
+
+def assert_can_access_appointment(user: User, appointment) -> None:
+    """Professional solo puede operar sus propios turnos.
+
+    Owner y staff operan cualquier turno del consultorio. El aislamiento entre
+    consultorios ya lo garantiza el filtro por organization_id en las consultas.
+    """
+    if user.role == UserRole.PROFESSIONAL and appointment.professional_id != user.id:
+        raise forbidden("Solo podés operar tus propios turnos")

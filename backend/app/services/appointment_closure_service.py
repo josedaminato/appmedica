@@ -5,7 +5,9 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
+from app.core.rbac import assert_can_access_appointment
 from app.models.appointment import Appointment
+from app.models.user import User
 from app.models.enums import (
     AppointmentClosureStatus,
     AppointmentStatus,
@@ -36,11 +38,13 @@ class AppointmentClosureService:
         organization_id: uuid.UUID,
         appointment_id: uuid.UUID,
         data: CloseAppointmentRequest,
-        professional_id: uuid.UUID | None,
+        current_user: User,
     ) -> AppointmentResponse:
         appointment = self.appointments.get_by_id(organization_id, appointment_id)
         if not appointment:
             raise not_found("Turno")
+        assert_can_access_appointment(current_user, appointment)
+        professional_id = current_user.id
         if appointment.status != AppointmentStatus.ATTENDED:
             raise bad_request("Solo se puede cerrar administrativamente un turno marcado como asistió")
         if appointment.closure_status != AppointmentClosureStatus.NONE:
@@ -177,11 +181,13 @@ class AppointmentClosureService:
         organization_id: uuid.UUID,
         appointment_id: uuid.UUID,
         data: AddPaymentRequest,
-        professional_id: uuid.UUID | None,
+        current_user: User,
     ) -> AppointmentResponse:
         appointment = self.appointments.get_by_id(organization_id, appointment_id)
         if not appointment:
             raise not_found("Turno")
+        assert_can_access_appointment(current_user, appointment)
+        professional_id = current_user.id
         if appointment.closure_status not in (
             AppointmentClosureStatus.PARTIAL,
             AppointmentClosureStatus.PENDING,

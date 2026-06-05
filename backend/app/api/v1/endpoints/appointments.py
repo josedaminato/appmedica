@@ -52,7 +52,7 @@ def create_appointment(
     return AppointmentService(db).create_appointment(
         current_user.organization_id,
         data,
-        current_user.id,
+        current_user,
     )
 
 
@@ -62,7 +62,9 @@ def get_appointment(
     current_user: CurrentUser,
     db: DbSession,
 ) -> AppointmentResponse:
-    return AppointmentService(db).get_appointment(current_user.organization_id, appointment_id)
+    return AppointmentService(db).get_appointment(
+        current_user.organization_id, appointment_id, current_user,
+    )
 
 
 @router.patch("/{appointment_id}", response_model=AppointmentResponse)
@@ -73,7 +75,7 @@ def update_appointment(
     db: DbSession,
 ) -> AppointmentResponse:
     return AppointmentService(db).update_appointment(
-        current_user.organization_id, appointment_id, data,
+        current_user.organization_id, appointment_id, data, current_user,
     )
 
 
@@ -83,7 +85,7 @@ def confirm_appointment(
     current_user: CurrentUser,
     db: DbSession,
 ) -> AppointmentResponse:
-    return AppointmentService(db).confirm(current_user.organization_id, appointment_id)
+    return AppointmentService(db).confirm(current_user.organization_id, appointment_id, current_user)
 
 
 @router.post("/{appointment_id}/attend", response_model=AppointmentResponse)
@@ -92,7 +94,7 @@ def attend_appointment(
     current_user: CurrentUser,
     db: DbSession,
 ) -> AppointmentResponse:
-    return AppointmentService(db).mark_attended(current_user.organization_id, appointment_id)
+    return AppointmentService(db).mark_attended(current_user.organization_id, appointment_id, current_user)
 
 
 @router.post("/{appointment_id}/no-show", response_model=AppointmentResponse)
@@ -101,7 +103,7 @@ def no_show_appointment(
     current_user: CurrentUser,
     db: DbSession,
 ) -> AppointmentResponse:
-    return AppointmentService(db).mark_no_show(current_user.organization_id, appointment_id)
+    return AppointmentService(db).mark_no_show(current_user.organization_id, appointment_id, current_user)
 
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentResponse)
@@ -110,7 +112,7 @@ def cancel_appointment(
     current_user: CurrentUser,
     db: DbSession,
 ) -> AppointmentResponse:
-    return AppointmentService(db).cancel(current_user.organization_id, appointment_id)
+    return AppointmentService(db).cancel(current_user.organization_id, appointment_id, current_user)
 
 
 @router.post("/{appointment_id}/reschedule", response_model=AppointmentResponse)
@@ -121,7 +123,7 @@ def reschedule_appointment(
     db: DbSession,
 ) -> AppointmentResponse:
     return AppointmentService(db).reschedule(
-        current_user.organization_id, appointment_id, data, current_user.id,
+        current_user.organization_id, appointment_id, data, current_user,
     )
 
 
@@ -136,7 +138,7 @@ def close_appointment(
         current_user.organization_id,
         appointment_id,
         data,
-        current_user.id,
+        current_user,
     )
 
 
@@ -151,5 +153,5 @@ def add_payment_to_appointment(
         current_user.organization_id,
         appointment_id,
         data,
-        current_user.id,
+        current_user,
     )
