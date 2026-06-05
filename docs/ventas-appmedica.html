@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AppMedica — El consultorio, ordenado. Sin Excel.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --green-900: #0b3d33;
+      --green-700: #0f766e;
+      --green-600: #128a7e;
+      --green-500: #14b8a6;
+      --green-100: #d7f2ec;
+      --green-50: #eefbf7;
+      --ink: #0f1c1a;
+      --muted: #5a6b67;
+      --line: #e3ece9;
+      --paper: #ffffff;
+      --bg: #f4f8f6;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Manrope', system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(120% 80% at 100% 0%, #e6f5f0 0%, rgba(230,245,240,0) 55%),
+        radial-gradient(100% 70% at 0% 100%, #eaf6f2 0%, rgba(234,246,242,0) 50%),
+        var(--bg);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .sheet {
+      max-width: 880px;
+      margin: 32px auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: 0 30px 60px -25px rgba(11, 61, 51, 0.25);
+      overflow: hidden;
+    }
+
+    /* ---------- HERO ---------- */
+    .hero {
+      position: relative;
+      padding: 46px 48px 40px;
+      background:
+        radial-gradient(140% 120% at 90% -20%, rgba(20,184,166,0.18) 0%, rgba(20,184,166,0) 60%),
+        linear-gradient(155deg, var(--green-900) 0%, var(--green-700) 100%);
+      color: #eafaf5;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -60px; top: -60px;
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      border: 40px solid rgba(255,255,255,0.05);
+    }
+    .brand {
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; letter-spacing: -0.02em; font-size: 20px;
+      margin-bottom: 30px;
+    }
+    .logo {
+      width: 38px; height: 38px; border-radius: 11px;
+      display: grid; place-items: center;
+      background: linear-gradient(160deg, #2fe0bf, #0f766e);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
+    }
+    .logo svg { width: 22px; height: 22px; }
+    .brand small { display:block; font-weight:500; font-size:11px; opacity:.7; letter-spacing:.04em; text-transform:uppercase;}
+
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #9cf0dd;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-family: 'Fraunces', serif;
+      font-weight: 600;
+      font-size: 44px;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      max-width: 16ch;
+    }
+    h1 em { font-style: italic; color: #5fe8cb; }
+    .lede {
+      margin-top: 18px;
+      font-size: 17px;
+      max-width: 56ch;
+      color: #cdeee5;
+    }
+    .hero-tags {
+      margin-top: 26px;
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .tag {
+      font-size: 12.5px; font-weight: 600;
+      padding: 7px 13px; border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #eafaf5;
+    }
+
+    /* ---------- BODY ---------- */
+    .body { padding: 40px 48px 16px; }
+
+    .section-title {
+      font-family: 'Fraunces', serif;
+      font-size: 14px; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--green-700);
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 22px;
+    }
+    .section-title::after {
+      content: ""; flex: 1; height: 1px;
+      background: linear-gradient(90deg, var(--line), transparent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 22px;
+    }
+    .feature {
+      display: flex; gap: 13px;
+      padding: 4px 0;
+    }
+    .feature .ic {
+      flex: none;
+      width: 34px; height: 34px; border-radius: 10px;
+      background: var(--green-50);
+      border: 1px solid var(--green-100);
+      display: grid; place-items: center;
+      color: var(--green-700);
+    }
+    .feature .ic svg { width: 18px; height: 18px; }
+    .feature h3 { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+    .feature p { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+
+    /* value strip */
+    .value {
+      margin: 38px 0 8px;
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--green-50);
+    }
+    .value div { padding: 20px; text-align: center; border-right: 1px solid var(--line); }
+    .value div:last-child { border-right: none; }
+    .value .num {
+      font-family: 'Fraunces', serif;
+      font-size: 30px; font-weight: 600; color: var(--green-700);
+      line-height: 1;
+    }
+    .value .lbl { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+
+    /* ---------- CTA ---------- */
+    .cta {
+      margin: 36px 48px 44px;
+      border-radius: 18px;
+      padding: 30px 34px;
+      background: linear-gradient(135deg, var(--green-700), var(--green-900));
+      color: #eafaf5;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .cta h2 {
+      font-family: 'Fraunces', serif; font-weight: 600;
+      font-size: 24px; letter-spacing: -0.01em;
+    }
+    .cta p { font-size: 14px; color: #c3ebe1; margin-top: 6px; }
+    .contacts { display: flex; flex-direction: column; gap: 10px; }
+    .contact {
+      display: flex; align-items: center; gap: 11px;
+      font-weight: 700; font-size: 15px;
+      text-decoration: none; color: #eafaf5;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 11px 18px; border-radius: 12px;
+      white-space: nowrap;
+    }
+    .contact svg { width: 18px; height: 18px; flex: none; }
+    .contact small { display:block; font-weight:500; font-size:11px; opacity:.7; }
+
+    .foot {
+      padding: 0 48px 30px;
+      font-size: 12px; color: var(--muted);
+      display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    }
+    .foot strong { color: var(--green-700); }
+
+    @media (max-width: 680px) {
+      .grid, .value { grid-template-columns: 1fr; }
+      .value div { border-right: none; border-bottom: 1px solid var(--line); }
+      h1 { font-size: 34px; }
+      .hero, .body { padding-left: 26px; padding-right: 26px; }
+      .cta { margin-left: 18px; margin-right: 18px; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .sheet { box-shadow: none; border: none; margin: 0; max-width: 100%; border-radius: 0; }
+      .hero, .cta { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet">
+    <!-- HERO -->
+    <header class="hero">
+      <div class="brand">
+        <span class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#eafaf5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+        <span>AppMedica<small>por daminatoweb</small></span>
+      </div>
+
+      <span class="eyebrow">Gestión de consultorios · Argentina</span>
+      <h1>El consultorio, <em>ordenado</em>. Sin Excel.</h1>
+      <p class="lede">Agenda, pacientes, obras sociales y cobros en un solo lugar. Pensado para consultorios de salud que quieren dejar las planillas y ver de un vistazo qué se debe, qué se cobró y qué falta cerrar.</p>
+
+      <div class="hero-tags">
+        <span class="tag">Agenda inteligente</span>
+        <span class="tag">Cobros y deuda</span>
+        <span class="tag">Obras sociales</span>
+        <span class="tag">Reportes y export Excel</span>
+        <span class="tag">Multiusuario por roles</span>
+      </div>
+    </header>
+
+    <!-- FEATURES -->
+    <main class="body">
+      <div class="section-title">Todo lo que necesita el día a día</div>
+
+      <div class="grid">
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+          <div><h3>Agenda y turnos</h3><p>Día a día con duración, modalidad y aviso de solapamiento. Confirmar, asistir, reprogramar y cerrar el turno en pocos clics.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <div><h3>Pacientes</h3><p>Ficha completa, búsqueda y ficha administrativa. Importás tu Excel actual y exportás cuando quieras.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+          <div><h3>Cobros y deuda</h3><p>Cuánto te deben los particulares y las obras sociales, cobros parciales y registro al instante. Adiós planilla de deudores.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M21 12c0 5-3.5 7.5-8.5 9-5-1.5-8.5-4-8.5-9V5l8.5-3L21 5z"/></svg></span>
+          <div><h3>Obras sociales</h3><p>Reclamos y liquidaciones: facturado, cobrado o rechazado. Ranking por demora para saber cuál te paga peor.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span>
+          <div><h3>Reportes y exportación</h3><p>Resumen mensual de turnos, cobros y deuda. Descarga a Excel o CSV para tu contador, listas o respaldos.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M2 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"/><path d="M19 8v6M22 11h-6"/></svg></span>
+          <div><h3>Equipo con roles</h3><p>Dueño, profesional y staff. Cada profesional ve solo su agenda y su cartera; vos ves todo.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
+          <div><h3>Recordatorios y calendario</h3><p>Recordatorio por WhatsApp desde la agenda, email opcional y sincronización con Google/Apple Calendar.</p></div>
+        </div>
+
+        <div class="feature">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+          <div><h3>Seguro y en la nube</h3><p>Cada consultorio ve solo sus datos. Acceso desde cualquier dispositivo, sin instalar nada.</p></div>
+        </div>
+      </div>
+
+      <!-- VALUE STRIP -->
+      <div class="value">
+        <div><div class="num">1</div><div class="lbl">Lugar para agenda, cobros y obras sociales</div></div>
+        <div><div class="num">0</div><div class="lbl">Planillas de Excel sueltas para mantener</div></div>
+        <div><div class="num">3</div><div class="lbl">Roles para trabajar en equipo con orden</div></div>
+      </div>
+    </main>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div>
+        <h2>¿Lo probamos en tu consultorio?</h2>
+        <p>Te muestro una demo en vivo y lo dejamos funcionando con tus datos.</p>
+      </div>
+      <div class="contacts">
+        <a class="contact" href="https://wa.me/5491127654198">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163a11.867 11.867 0 0 1-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.82 11.82 0 0 1 8.413 3.488 11.82 11.82 0 0 1 3.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 0 1-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.82 9.82 0 0 0 1.504 5.26l-.999 3.648 3.984-1.607zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+          <span>+54 9 11 2765-4198<small>WhatsApp</small></span>
+        </a>
+        <a class="contact" href="mailto:contacto@daminatoweb.com">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+          <span>contacto@daminatoweb.com<small>Email</small></span>
+        </a>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <span><strong>AppMedica</strong> — software de gestión para consultorios de salud.</span>
+      <span>daminatoweb.com</span>
+    </footer>
+  </div>
+</body>
+</html>
