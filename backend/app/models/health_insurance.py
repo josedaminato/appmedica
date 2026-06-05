@@ -9,7 +9,7 @@ from app.db.mixins import SoftDeleteMixin, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class HealthInsurance(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
-    """Catálogo de obras sociales — módulo futuro."""
+    """Catálogo de obras sociales del consultorio."""
 
     __tablename__ = "health_insurances"
 

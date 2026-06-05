@@ -1,8 +1,10 @@
 # AppMedica
 
-SaaS administrativo para profesionales de la salud en Argentina. Gestión simple de pacientes, agenda, obras sociales y cobros.
+SaaS administrativo para profesionales de la salud en Argentina. Gestión simple de pacientes, agenda, obras sociales, cobros y reportes.
 
-**Fase 1 incluye:** autenticación JWT, layout SaaS, dashboard inicial y módulo de pacientes completo.
+**Incluye:** autenticación JWT, dashboard con alertas, pacientes (e import Excel), agenda con cierre administrativo, obras sociales (reclamos y ranking), cobros, reportes mensuales, exportación y gestión de equipo (owner).
+
+**Repositorio:** https://github.com/josedaminato/appmedica
 
 ## Requisitos
 
@@ -19,7 +21,7 @@ cp .env.production.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Guía completa: [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
+Guías: [docs/DEPLOY.md](docs/DEPLOY.md) · [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
 
 
 ## Inicio rápido (Windows)
@@ -303,20 +305,43 @@ En la UI: **Obras sociales → Reclamos** (marcar facturado/cobrado) y **Ranking
 
 ```
 appmedica/
-├── backend/          # FastAPI + SQLAlchemy + Alembic
-├── frontend/         # React + Vite + shadcn/ui
-├── docs/             # Documentación de arquitectura
-├── docker-compose.yml
+├── backend/              # FastAPI + SQLAlchemy + Alembic
+├── frontend/             # React + Vite + shadcn/ui
+├── docs/                 # Arquitectura y deploy
+├── nginx/                # Config Nginx host (producción)
+├── scripts/              # setup-vps.sh, deploy.sh, verify-stack.ps1
+├── docker-compose.yml    # Desarrollo
+├── docker-compose.prod.yml
 └── .env.example
 ```
 
-## Próximas fases
+## Módulos principales
 
-- **Fase 2:** Agenda y turnos
-- **Fase 3:** Obras sociales
-- **Fase 4:** Cobros y deuda
-- **Fase 5:** Reportes con datos reales
-- **Fase 6:** Recordatorios (WhatsApp / email)
+| Ruta UI | Descripción |
+|---------|-------------|
+| `/` | Dashboard y alertas |
+| `/patients` | Pacientes + import |
+| `/agenda` | Turnos (filtros en URL) |
+| `/insurances` | OS, reclamos, ranking |
+| `/payments` | Cobros y deuda |
+| `/reports` | Resumen mensual + export |
+| `/team` | Equipo (solo owner) |
+
+## Tests
+
+```bash
+cd backend
+pip install -r requirements.txt pytest pytest-cov
+pytest tests -q
+```
+
+Smoke E2E API: `docker compose exec backend python scripts/test_core_flow.py`
+
+## Roadmap
+
+- Recordatorios reales (WhatsApp / email)
+- Editar obra social desde la UI
+- Ampliar cobertura de tests y métricas de coverage en CI
 
 ## Licencia
 

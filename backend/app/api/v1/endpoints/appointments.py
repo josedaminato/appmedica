@@ -4,6 +4,7 @@ from datetime import date
 from fastapi import APIRouter, Query, status
 
 from app.core.dependencies import CurrentUser, DbSession
+from app.core.rbac import resolve_professional_filter
 from app.models.enums import AppointmentClosureStatus, AppointmentStatus
 from app.schemas.appointment import (
     AddPaymentRequest,
@@ -30,11 +31,12 @@ def list_appointments(
     patient_q: str | None = Query(None, max_length=100),
     closure_status: AppointmentClosureStatus | None = None,
 ) -> list[AppointmentResponse]:
+    prof_filter = resolve_professional_filter(current_user, professional_id)
     return AppointmentService(db).list_appointments(
         current_user.organization_id,
         view=view,
         reference_date=date_param,
-        professional_id=professional_id,
+        professional_id=prof_filter,
         status=status,
         patient_q=patient_q,
         closure_status=closure_status,

@@ -1,10 +1,19 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Banknote, Building2, CheckCircle2, ClipboardList, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useRoleScope } from "@/hooks/use-role-scope"
+import { listTeam } from "@/features/users/api"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
@@ -43,15 +52,35 @@ function tabFromParams(params: URLSearchParams): CollectionTab {
 
 export function PaymentsPage() {
   const qc = useQueryClient()
+  const { lockedProfessionalId, canFilterByProfessional } = useRoleScope()
   const [searchParams, setSearchParams] = useSearchParams()
   const [tab, setTab] = useState<CollectionTab>(() => tabFromParams(searchParams))
+  const [professionalId, setProfessionalId] = useState<string>(
+    () => lockedProfessionalId ?? searchParams.get("professional_id") ?? "all",
+  )
   const [collectTarget, setCollectTarget] = useState<CollectionRow | null>(null)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
   useEffect(() => {
     setTab(tabFromParams(searchParams))
-  }, [searchParams])
+    if (lockedProfessionalId) {
+      setProfessionalId(lockedProfessionalId)
+    } else {
+      setProfessionalId(searchParams.get("professional_id") ?? "all")
+    }
+  }, [searchParams, lockedProfessionalId])
+
+  const effectiveProfessionalId = useMemo(
+    () => lockedProfessionalId ?? (professionalId === "all" ? undefined : professionalId),
+    [lockedProfessionalId, professionalId],
+  )
+
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: listTeam,
+    enabled: canFilterByProfessional,
+  })
 
   function selectTab(next: CollectionTab) {
     setTab(next)
@@ -65,15 +94,29 @@ export function PaymentsPage() {
     )
   }
 
+  function syncProfessionalId(next: string) {
+    setProfessionalId(next)
+    if (lockedProfessionalId) return
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next && next !== "all") params.set("professional_id", next)
+        else params.delete("professional_id")
+        return params
+      },
+      { replace: true },
+    )
+  }
+
   const { data: summary, isLoading: loadingSummary } = useQuery({
-    queryKey: ["payments-summary"],
-    queryFn: api.getCollectionsSummary,
+    queryKey: ["payments-summary", effectiveProfessionalId],
+    queryFn: () => api.getCollectionsSummary(effectiveProfessionalId),
     refetchInterval: 60_000,
   })
 
   const { data: rows = [], isLoading: loadingRows } = useQuery({
-    queryKey: ["payments-items", tab],
-    queryFn: () => api.listCollectionItems(tab),
+    queryKey: ["payments-items", tab, effectiveProfessionalId],
+    queryFn: () => api.listCollectionItems(tab, effectiveProfessionalId),
   })
 
   const collect = useMutation({
@@ -161,6 +204,24 @@ export function PaymentsPage() {
 
       {success && <FeedbackBanner variant="success" message={success} />}
       {error && <FeedbackBanner variant="error" message={error} />}
+
+      {canFilterByProfessional && (
+        <div className="mb-4">
+          <Select value={professionalId} onValueChange={syncProfessionalId}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder="Profesional" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los profesionales</SelectItem>
+              {team.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.full_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex gap-1 mb-4 border-b overflow-x-auto">
         {TABS.map((t) => (

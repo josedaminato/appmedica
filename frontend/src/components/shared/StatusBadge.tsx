@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge"
-import type { AppointmentClosureStatus, AppointmentStatus } from "@/types/api"
+import { attentionLabel } from "@/lib/attention-label"
+import type { AppointmentClosureStatus, AppointmentStatus, AttentionType } from "@/types/api"
 
 const statusLabels: Record<AppointmentStatus, string> = {
   pending: "Pendiente",
@@ -37,6 +38,25 @@ const closureVariant: Record<string, "default" | "secondary" | "success" | "warn
 
 export function AppointmentStatusBadge({ status }: { status: AppointmentStatus }) {
   return <Badge variant={statusVariant[status] ?? "secondary"}>{statusLabels[status]}</Badge>
+}
+
+export function AttentionTypeBadge({
+  attentionType,
+  healthInsuranceName,
+}: {
+  attentionType: AttentionType
+  healthInsuranceName?: string | null
+}) {
+  const label = attentionLabel(attentionType, healthInsuranceName)
+  const isPrivate = attentionType === "private"
+  return (
+    <Badge
+      variant={isPrivate ? "outline" : "secondary"}
+      className={isPrivate ? "" : "bg-sky-500/15 text-sky-900 dark:text-sky-100 border-sky-500/30"}
+    >
+      {label}
+    </Badge>
+  )
 }
 
 export function ClosureStatusBadge({

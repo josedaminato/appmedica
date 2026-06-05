@@ -8,9 +8,10 @@ class ReminderPayload:
     message: str
     phone: str | None = None
     email: str | None = None
+    subject: str | None = None
 
 
 class ReminderProvider(ABC):
     @abstractmethod
     async def send(self, payload: ReminderPayload) -> bool:
-        """Envía un recordatorio. Implementación futura."""
+        """Envía un recordatorio por el canal configurado (mock, SMTP, Twilio, Meta)."""

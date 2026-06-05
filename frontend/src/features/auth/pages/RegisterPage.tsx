@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { ApiError } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
 
@@ -34,7 +35,7 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Crear consultorio</CardTitle>
@@ -70,6 +71,7 @@ export function RegisterPage() {
           </p>
         </CardContent>
       </Card>
+      <UrgentHelpSection className="w-full max-w-md" />
     </div>
   )
 }

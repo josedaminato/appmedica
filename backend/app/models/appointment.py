@@ -78,4 +78,7 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     patient: Mapped["Patient"] = relationship(foreign_keys=[patient_id])
     professional: Mapped["User | None"] = relationship(foreign_keys=[professional_id])
+    health_insurance: Mapped["HealthInsurance | None"] = relationship(
+        foreign_keys=[health_insurance_id],
+    )
     payments: Mapped[list["Payment"]] = relationship(back_populates="appointment")

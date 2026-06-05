@@ -12,7 +12,7 @@ from app.models.enums import ReminderChannel, ReminderStatus
 
 
 class ReminderJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-    """Recordatorios — integración futura."""
+    """Jobs de recordatorios por turno (email / WhatsApp)."""
 
     __tablename__ = "reminder_jobs"
 

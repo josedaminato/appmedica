@@ -25,7 +25,9 @@ Objetivo: **https://app.daminatoweb.com**
 ssh root@IP_DEL_VPS
 ```
 
-*(Reemplazá `IP_DEL_VPS` por la IP real, ej. `45.152.46.212`.)*
+**VPS Hostinger KVM 1:** `ssh root@72.60.166.24` (hostname `srv1035833.hstgr.cloud`, Boston US).
+
+Credenciales de producción (solo en tu PC, no en Git): `backend/.env.prod` y `deploy/vps.local.env`.
 
 ---
 

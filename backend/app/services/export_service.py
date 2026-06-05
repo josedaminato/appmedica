@@ -65,17 +65,14 @@ class ExportService:
         from datetime import date
 
         from app.repositories.insurance_claim_repository import InsuranceClaimRepository
-        from app.repositories.patient_repository import PatientRepository
 
         repo = InsuranceClaimRepository(self.db)
-        patients = PatientRepository(self.db)
         today = date.today()
         rows = []
-        for claim, insurance in repo.list_all_with_insurance(organization_id):
-            patient = patients.get_by_id(organization_id, claim.patient_id)
-            pname = (
-                f"{patient.last_name}, {patient.first_name}" if patient else ""
-            )
+        for claim, patient, insurance in repo.list_all_with_insurance_and_patient(
+            organization_id,
+        ):
+            pname = f"{patient.last_name}, {patient.first_name}"
             rows.append(
                 {
                     "paciente": pname,

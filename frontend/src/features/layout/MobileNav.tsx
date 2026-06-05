@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils"
 import { APP_NAME } from "@/lib/constants"
 import { useAuth } from "@/features/auth/AuthContext"
+import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { visibleNavItems } from "./nav-config"
 
 export function MobileNav() {
@@ -60,6 +61,9 @@ export function MobileNav() {
             ),
           )}
         </nav>
+        <div className="border-t p-3">
+          <UrgentHelpSection compact />
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -21,7 +21,7 @@
 ## Deuda técnica detectada
 
 1. No hay capa unificada “cobros/deuda” (lógica repartida en dashboard, agenda, OS).
-2. Menú `/payments` y `/reports` visibles pero vacíos.
+2. ~~Menú `/payments` y `/reports` visibles pero vacíos.~~ Hecho.
 3. Errores 401 y empty states inconsistentes en frontend.
 4. Roles en BD sin enforcement.
 5. Sin export → usuarios mantienen Excel para contador/listas.

@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 import re
@@ -7,7 +8,10 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.exceptions import bad_request, conflict, unauthorized
+from app.integrations.reminders.base import ReminderPayload
+from app.integrations.reminders.factory import get_email_provider
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models.enums import UserRole
 from app.models.organization import Organization
@@ -110,12 +114,37 @@ class AuthService:
         self.reset_tokens.create(token)
         self.db.commit()
 
-        logger.info(
-            "[MOCK EMAIL] Password reset for %s | token: %s | expires: %s",
-            user.email,
-            raw_token,
-            token.expires_at.isoformat(),
+        settings = get_settings()
+        reset_url = f"{settings.public_app_url.rstrip('/')}/reset-password?token={raw_token}"
+        body = (
+            f"Hola {user.full_name},\n\n"
+            f"Recibimos una solicitud para restablecer tu contraseña en {settings.app_name}.\n"
+            f"Abrí este enlace (válido 2 horas):\n{reset_url}\n\n"
+            "Si no pediste esto, ignorá el mensaje."
         )
+        email_payload = ReminderPayload(
+            patient_name=user.full_name,
+            message=body,
+            email=user.email,
+            subject=f"{settings.app_name} — Restablecer contraseña",
+        )
+        try:
+            asyncio.run(get_email_provider(settings).send(email_payload))
+        except Exception:
+            logger.exception("No se pudo enviar email de reset a %s", user.email)
+            logger.info(
+                "[FALLBACK] Password reset token for %s: %s",
+                user.email,
+                raw_token,
+            )
+
+        if (settings.email_provider or "mock").lower() == "mock":
+            logger.info(
+                "[MOCK EMAIL] Password reset for %s | token: %s | expires: %s",
+                user.email,
+                raw_token,
+                token.expires_at.isoformat(),
+            )
         return message
 
     def reset_password(self, data: ResetPasswordRequest) -> TokenResponse:

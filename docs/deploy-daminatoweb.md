@@ -5,12 +5,14 @@ Configuración concreta para tu Hostinger KVM 1.
 | Dato | Valor |
 |------|--------|
 | VPS ID | 1035833 |
-| IP | `45.152.46.212` |
+| IP | `72.60.166.24` |
+| Hostname | `srv1035833.hstgr.cloud` |
+| Ubicación | Estados Unidos (Boston) |
 | Dominio AppMedica | `app.daminatoweb.com` (recomendado) o `daminatoweb.com` |
 | Dominio | `daminatoweb.com` |
 | Renovación VPS | 29 jun 2026 |
 
-**Nota:** El VPS (`45.152.46.212`) puede alojar **otros servicios no relacionados** con AppMedica ni con daminatoweb.com (proyectos distintos, otros puertos/datos). AppMedica es un producto aparte; solo comparte la máquina si vos elegís desplegarlo ahí.
+**Nota:** El VPS (`72.60.166.24`) puede alojar **otros servicios no relacionados** con AppMedica ni con daminatoweb.com (proyectos distintos, otros puertos/datos). AppMedica es un producto aparte; solo comparte la máquina si vos elegís desplegarlo ahí.
 
 ## Acceso SSH — importante (leer antes de conectar)
 
@@ -24,7 +26,7 @@ Hostinger puede mostrar **dos accesos distintos** con la misma IP:
 El comando que te muestra hPanel en “Detalles de SSH” del **dominio/hosting**:
 
 ```bash
-ssh -p 65002 u906481625@45.152.46.212
+ssh -p 65002 u906481625@72.60.166.24
 ```
 
 Ese acceso sirve para **subir archivos PHP** o administrar hosting compartido. **AppMedica no corre ahí** (necesita Docker + PostgreSQL + FastAPI).
@@ -37,21 +39,21 @@ Para desplegar AppMedica, conectate al **VPS KVM 1035833**:
 
 ```bash
 # Ejemplo típico VPS (confirmar en hPanel → VPS, no en SSH del dominio)
-ssh root@45.152.46.212
+ssh root@72.60.166.24
 
 # Si el VPS usa otro puerto:
-ssh -p PUERTO root@45.152.46.212
+ssh -p PUERTO root@72.60.166.24
 ```
 
 **Firewall:** abrí **80**, **443** y el puerto SSH que uses (**22** en VPS o **65002** solo si administrás hosting por ahí).
 
 ## DNS
 
-Registro **A** para `@` → `45.152.46.212`  
+Registro **A** para `@` → `72.60.166.24`  
 Registro **A** o **CNAME** para `www` → `daminatoweb.com` o la misma IP  
-**AppMedica (VPS compartido):** registro **A** `app` → `45.152.46.212`
+**AppMedica (VPS compartido):** registro **A** `app` → `72.60.166.24`
 
-Estado actual (resuelto): `daminatoweb.com` → `45.152.46.212` ✓
+Estado actual (resuelto): `daminatoweb.com` → `72.60.166.24` ✓
 
 ## VPS con otros servicios (no relacionados con AppMedica)
 
@@ -81,10 +83,10 @@ nginx del host: ver [`deploy/nginx/host-vps-shared.conf`](../deploy/nginx/host-v
 
 ```bash
 # Hosting web (NO usar para AppMedica):
-# ssh -p 65002 u906481625@45.152.46.212
+# ssh -p 65002 u906481625@72.60.166.24
 
 # VPS KVM — usar credenciales de hPanel → VPS → 1035833:
-ssh root@45.152.46.212
+ssh root@72.60.166.24
 ```
 
 ## 2. Instalar Docker (si falta)

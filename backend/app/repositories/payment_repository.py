@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.models.enums import PaymentStatus
 from app.models.patient import Patient
@@ -96,11 +96,33 @@ class PaymentRepository(BaseRepository[Payment]):
         row = self.db.execute(stmt).one()
         return Decimal(str(row[0] or 0)), int(row[1] or 0)
 
+    def sum_paid_between_for_professional(
+        self,
+        organization_id: uuid.UUID,
+        professional_id: uuid.UUID,
+        start: datetime,
+        end: datetime,
+    ) -> tuple[Decimal, int]:
+        stmt = select(
+            func.coalesce(func.sum(Payment.amount), 0),
+            func.count(),
+        ).where(
+            Payment.organization_id == organization_id,
+            Payment.professional_id == professional_id,
+            Payment.status == PaymentStatus.PAID,
+            Payment.paid_at.isnot(None),
+            Payment.paid_at >= start,
+            Payment.paid_at < end,
+        )
+        row = self.db.execute(stmt).one()
+        return Decimal(str(row[0] or 0)), int(row[1] or 0)
+
     def list_recent_paid(
         self,
         organization_id: uuid.UUID,
         *,
         limit: int = 50,
+        professional_id: uuid.UUID | None = None,
     ) -> list[tuple[Payment, Patient, User | None]]:
         stmt = (
             select(Payment, Patient, User)
@@ -113,6 +135,8 @@ class PaymentRepository(BaseRepository[Payment]):
             .order_by(Payment.paid_at.desc().nullslast(), Payment.created_at.desc())
             .limit(limit)
         )
+        if professional_id:
+            stmt = stmt.where(Payment.professional_id == professional_id)
         return list(self.db.execute(stmt).all())
 
     def list_by_appointment(self, appointment_id: uuid.UUID) -> list[Payment]:

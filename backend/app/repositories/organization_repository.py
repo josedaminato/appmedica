@@ -17,3 +17,8 @@ class OrganizationRepository(BaseRepository[Organization]):
         self.db.add(organization)
         self.db.flush()
         return organization
+
+    def update(self, organization: Organization) -> Organization:
+        self.db.add(organization)
+        self.db.flush()
+        return organization

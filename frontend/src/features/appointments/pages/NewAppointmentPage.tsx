@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
@@ -13,24 +13,51 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { PageHeader } from "@/components/shared/PageHeader"
+import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { useAuth } from "@/features/auth/AuthContext"
 import { listPatients } from "@/features/patients/api"
 import { listHealthInsurances } from "@/features/insurances/api"
 import { listTeam } from "@/features/users/api"
+import { ApiError } from "@/lib/api-client"
+import { conflictMessage } from "@/lib/appointment-schedule"
+import { formatMoney } from "@/lib/format"
+import { StandardDurationHint } from "../components/AgendaDurationSettings"
+import {
+  AppointmentScheduleFields,
+  useScheduleValidation,
+} from "../components/AppointmentScheduleFields"
 import * as apptApi from "../api"
 
 export function NewAppointmentPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const defaultDuration =
+    user?.organization.default_appointment_duration_minutes ?? 30
+  const defaultSessionAmount = user?.organization.default_private_session_amount
+
   const [patientId, setPatientId] = useState("")
   const [professionalId, setProfessionalId] = useState("")
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [time, setTime] = useState("09:00")
-  const [duration, setDuration] = useState("30")
+  const [durationMinutes, setDurationMinutes] = useState(defaultDuration)
+
+  useEffect(() => {
+    setDurationMinutes(defaultDuration)
+  }, [defaultDuration])
+
   const [modality, setModality] = useState<"presencial" | "online">("presencial")
   const [attentionType, setAttentionType] = useState<"private" | "health_insurance">("private")
   const [amount, setAmount] = useState("")
+
+  useEffect(() => {
+    if (attentionType === "private" && defaultSessionAmount != null && defaultSessionAmount !== "") {
+      setAmount(String(Number(defaultSessionAmount)))
+    } else if (attentionType === "health_insurance") {
+      setAmount("")
+    }
+  }, [attentionType, defaultSessionAmount])
   const [insuranceId, setInsuranceId] = useState("")
+  const [formError, setFormError] = useState("")
 
   const { data: patientsData } = useQuery({
     queryKey: ["patients", "picker"],
@@ -48,24 +75,52 @@ export function NewAppointmentPage() {
   const resolvedProfessionalId =
     professionalId || (user?.role === "professional" ? user.id : professionals[0]?.id ?? "")
 
+  const { data: dayAppointments = [] } = useQuery({
+    queryKey: ["appointments", date, "day", resolvedProfessionalId],
+    queryFn: () =>
+      apptApi.listAppointments({
+        date,
+        view: "day",
+        professional_id: resolvedProfessionalId || undefined,
+      }),
+    enabled: !!resolvedProfessionalId && !!date,
+  })
+
+  const schedule = useScheduleValidation(
+    date,
+    time,
+    durationMinutes,
+    dayAppointments,
+  )
+
   const create = useMutation({
     mutationFn: apptApi.createAppointment,
     onSuccess: (appt) => {
       const d = appt.start_at.slice(0, 10)
       navigate(`/agenda?date=${d}`)
     },
+    onError: (err) => {
+      setFormError(err instanceof ApiError ? err.message : "No se pudo crear el turno")
+    },
   })
+
+  const submitDisabled = useMemo(
+    () => !patientId || !schedule.valid || !schedule.start || !schedule.end || create.isPending,
+    [patientId, schedule, create.isPending],
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const start = new Date(`${date}T${time}:00`)
-    const end = new Date(start.getTime() + Number(duration) * 60_000)
-    if (end <= start) return
+    setFormError("")
+    if (!schedule.valid || !schedule.start || !schedule.end) {
+      if (schedule.conflict) setFormError(conflictMessage(schedule.conflict))
+      return
+    }
     await create.mutateAsync({
       patient_id: patientId,
       professional_id: resolvedProfessionalId || null,
-      start_at: start.toISOString(),
-      end_at: end.toISOString(),
+      start_at: schedule.start.toISOString(),
+      end_at: schedule.end.toISOString(),
       modality,
       attention_type: attentionType,
       expected_amount: amount ? Number(amount) : null,
@@ -75,7 +130,21 @@ export function NewAppointmentPage() {
 
   return (
     <div className="max-w-lg">
-      <PageHeader title="Nuevo turno" description="Agendá en pocos segundos." />
+      <PageHeader
+        title="Nuevo turno"
+        description={`Horario y duración (por defecto ${defaultDuration} min según tu consultorio). Podés cambiar la duración solo para este turno.`}
+      />
+      <StandardDurationHint />
+      {user?.role === "owner" && (
+        <p className="text-xs text-muted-foreground -mt-2 mb-4">
+          Para cambiar la duración o el valor de sesión de <strong>todos</strong> los turnos nuevos,
+          usá la configuración en{" "}
+          <Link to="/agenda" className="text-primary hover:underline">
+            Agenda
+          </Link>
+          .
+        </p>
+      )}
       <Card>
         <CardHeader><CardTitle className="text-base">Datos del turno</CardTitle></CardHeader>
         <CardContent>
@@ -110,20 +179,17 @@ export function NewAppointmentPage() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label>Fecha</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora</Label>
-                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Duración (min)</Label>
-              <Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} />
-            </div>
+
+            <AppointmentScheduleFields
+              date={date}
+              time={time}
+              durationMinutes={durationMinutes}
+              onDateChange={setDate}
+              onTimeChange={setTime}
+              onDurationChange={setDurationMinutes}
+              dayAppointments={dayAppointments}
+            />
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Modalidad</Label>
@@ -159,13 +225,39 @@ export function NewAppointmentPage() {
                 </Select>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Monto esperado ($)</Label>
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </div>
+            {attentionType === "private" && (
+              <div className="space-y-2">
+                <Label>Valor de la sesión ($)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={1}
+                  className="w-40 max-w-full"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder={
+                    defaultSessionAmount
+                      ? `Estándar: ${formatMoney(defaultSessionAmount)}`
+                      : "Monto en pesos"
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  {defaultSessionAmount
+                    ? "Trae el valor del consultorio; podés cambiarlo solo para este turno."
+                    : "Escribí el monto que cobrás por esta sesión."}
+                </p>
+              </div>
+            )}
+
+            {formError && <FeedbackBanner message={formError} variant="error" />}
+
             <div className="flex gap-2">
-              <Button type="submit" disabled={create.isPending}>Guardar</Button>
-              <Button type="button" variant="outline" asChild><Link to="/agenda">Cancelar</Link></Button>
+              <Button type="submit" disabled={submitDisabled}>
+                {create.isPending ? "Guardando..." : "Guardar turno"}
+              </Button>
+              <Button type="button" variant="outline" asChild>
+                <Link to="/agenda">Cancelar</Link>
+              </Button>
             </div>
           </form>
         </CardContent>

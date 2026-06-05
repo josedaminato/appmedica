@@ -11,6 +11,8 @@ export interface OrganizationBrief {
   id: string
   name: string
   slug: string
+  default_appointment_duration_minutes?: number
+  default_private_session_amount?: string | null
 }
 
 export interface User {
@@ -71,6 +73,12 @@ export interface PatientBrief {
   first_name: string
   last_name: string
   dni: string
+  phone?: string | null
+}
+
+export interface HealthInsuranceBrief {
+  id: string
+  name: string
 }
 
 export interface Appointment {
@@ -92,6 +100,7 @@ export interface Appointment {
   updated_at: string
   patient?: PatientBrief
   professional?: { id: string; full_name: string }
+  health_insurance?: HealthInsuranceBrief | null
 }
 
 export interface HealthInsurance {

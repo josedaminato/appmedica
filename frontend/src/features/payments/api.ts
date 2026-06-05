@@ -31,8 +31,11 @@ export type CollectionRow = {
   can_mark_insurance: boolean
 }
 
-export function getCollectionsSummary() {
-  return apiRequest<CollectionsSummary>("/payments/summary")
+export function getCollectionsSummary(professionalId?: string) {
+  const params = new URLSearchParams()
+  if (professionalId) params.set("professional_id", professionalId)
+  const qs = params.toString()
+  return apiRequest<CollectionsSummary>(`/payments/summary${qs ? `?${qs}` : ""}`)
 }
 
 export function listCollectionItems(tab: CollectionTab, professionalId?: string) {

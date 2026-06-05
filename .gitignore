@@ -4,6 +4,8 @@
 .env.prod
 backend/.env.prod
 **/.env.prod
+deploy/vps.local.env
+deploy/credentials.local.*
 
 # Python
 __pycache__/

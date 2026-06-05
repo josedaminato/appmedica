@@ -19,6 +19,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         return stmt.options(
             joinedload(Appointment.patient),
             joinedload(Appointment.professional),
+            joinedload(Appointment.health_insurance),
         )
 
     def get_by_id(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> Appointment | None:
@@ -74,6 +75,61 @@ class AppointmentRepository(BaseRepository[Appointment]):
         stmt = stmt.order_by(Appointment.start_at.asc())
         return list(self.db.scalars(stmt).unique().all())
 
+    def find_overlapping(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None,
+        start_at: datetime,
+        end_at: datetime,
+        exclude_appointment_id: uuid.UUID | None = None,
+    ) -> list[Appointment]:
+        if not professional_id:
+            return []
+
+        blocking = (
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.ATTENDED,
+        )
+        stmt = self._with_relations(
+            select(Appointment).where(
+                Appointment.organization_id == organization_id,
+                Appointment.professional_id == professional_id,
+                Appointment.status.in_(blocking),
+                Appointment.start_at < end_at,
+                Appointment.end_at > start_at,
+            ),
+        )
+        if exclude_appointment_id:
+            stmt = stmt.where(Appointment.id != exclude_appointment_id)
+        return list(self.db.scalars(stmt).unique().all())
+
+    def list_for_calendar_feed(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        start_date: date,
+        end_date_exclusive: date,
+        professional_id: uuid.UUID | None = None,
+    ) -> list[Appointment]:
+        excluded = (
+            AppointmentStatus.CANCELLED,
+            AppointmentStatus.RESCHEDULED,
+            AppointmentStatus.NO_SHOW,
+        )
+        conditions = [
+            Appointment.organization_id == organization_id,
+            Appointment.status.not_in(excluded),
+            cast(Appointment.start_at, Date) >= start_date,
+            cast(Appointment.start_at, Date) < end_date_exclusive,
+        ]
+        stmt = self._with_relations(select(Appointment).where(*conditions))
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
+        stmt = stmt.order_by(Appointment.start_at.asc())
+        return list(self.db.scalars(stmt).unique().all())
+
     def count_today(self, organization_id: uuid.UUID, day: date) -> int:
         start = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc)
         end = start + timedelta(days=1)
@@ -87,20 +143,35 @@ class AppointmentRepository(BaseRepository[Appointment]):
         )
         return self.db.scalar(stmt) or 0
 
-    def count_unclosed_attended(self, organization_id: uuid.UUID) -> int:
+    def count_unclosed_attended(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> int:
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
             Appointment.status == AppointmentStatus.ATTENDED,
             Appointment.closure_status == AppointmentClosureStatus.NONE,
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
-    def count_overdue_unresolved(self, organization_id: uuid.UUID, now: datetime) -> int:
+    def count_overdue_unresolved(
+        self,
+        organization_id: uuid.UUID,
+        now: datetime,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> int:
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
             Appointment.end_at < now,
             Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
     def list_upcoming(self, organization_id: uuid.UUID, now: datetime, limit: int = 5) -> list[Appointment]:

@@ -1,5 +1,9 @@
 """Carga datos demo idempotentes. Ejecutar: python scripts/seed_demo.py"""
 import sys
+from pathlib import Path
+
+# `python scripts/seed_demo.py` no incluye /app en sys.path (p. ej. Docker)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.core.security import hash_password
 from app.db.session import SessionLocal

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { EmptyState } from "@/components/shared/EmptyState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { formatMoney } from "@/lib/format"
 import * as api from "../api"
@@ -79,7 +80,10 @@ export function ReportsPage() {
       {isLoading ? (
         <LoadingSkeleton rows={3} />
       ) : isError ? (
-        <FeedbackBanner variant="error" message="No se pudo cargar el reporte" />
+        <EmptyState
+          title="No se pudo cargar el reporte"
+          description="Revisá tu conexión e intentá de nuevo en unos segundos."
+        />
       ) : data ? (
         <>
           <p className="text-sm text-muted-foreground mb-4">{data.period_label}</p>

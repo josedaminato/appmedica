@@ -14,8 +14,13 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 def get_collections_summary(
     current_user: CurrentUser,
     db: DbSession,
+    professional_id: uuid.UUID | None = Query(None),
 ) -> CollectionsSummary:
-    return CollectionsService(db).get_summary(current_user.organization_id)
+    prof_filter = resolve_professional_filter(current_user, professional_id)
+    return CollectionsService(db).get_summary(
+        current_user.organization_id,
+        professional_id=prof_filter,
+    )
 
 
 @router.get("/items", response_model=list[CollectionRow])

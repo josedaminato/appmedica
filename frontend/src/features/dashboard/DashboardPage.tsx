@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
-import { AppointmentStatusBadge } from "@/components/shared/StatusBadge"
+import { AppointmentStatusBadge, AttentionTypeBadge } from "@/components/shared/StatusBadge"
 import { formatMoney, formatTime } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { getDashboardAlerts, getDashboardSummary } from "./api"
@@ -60,7 +60,7 @@ export function DashboardPage() {
           value={String(d.overdue_unresolved)}
           icon={AlertCircle}
           highlight={d.overdue_unresolved > 0}
-          href="/agenda"
+          href="/agenda?status=pending"
         />
         <MetricCard
           title="Deuda particulares"
@@ -217,7 +217,13 @@ export function DashboardPage() {
                       {a.patient?.last_name}, {a.patient?.first_name}
                     </Link>
                   </div>
-                  <AppointmentStatusBadge status={a.status} />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <AttentionTypeBadge
+                      attentionType={a.attention_type}
+                      healthInsuranceName={a.health_insurance?.name}
+                    />
+                    <AppointmentStatusBadge status={a.status} />
+                  </div>
                 </li>
               ))}
             </ul>

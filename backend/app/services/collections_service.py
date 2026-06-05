@@ -43,22 +43,52 @@ class CollectionsService:
         self.payments = PaymentRepository(db)
         self.claims = InsuranceClaimRepository(db)
 
-    def get_summary(self, organization_id: uuid.UUID) -> CollectionsSummary:
+    def get_summary(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> CollectionsSummary:
         now = datetime.now(timezone.utc)
         today_start = datetime.combine(now.date(), datetime.min.time(), tzinfo=timezone.utc)
         today_end = today_start + timedelta(days=1)
-        paid_total, paid_count = self.payments.sum_paid_between(
-            organization_id, today_start, today_end,
-        )
 
+        if professional_id is None:
+            paid_total, paid_count = self.payments.sum_paid_between(
+                organization_id, today_start, today_end,
+            )
+            return CollectionsSummary(
+                private_debt_total=self.payments.sum_private_debt(organization_id),
+                insurance_debt_total=self.claims.sum_insurance_debt(organization_id),
+                payments_today_total=paid_total,
+                payments_today_count=paid_count,
+                pending_insurance_claims=self.claims.count_pending(organization_id),
+                unclosed_attended=self.appointments.count_unclosed_attended(organization_id),
+                overdue_unresolved=self.appointments.count_overdue_unresolved(organization_id, now),
+            )
+
+        private_rows = self._list_private_debt(organization_id, professional_id)
+        private_debt = sum((Decimal(r.balance_pending) for r in private_rows), Decimal("0"))
+        insurance_rows = self._list_insurance_open(organization_id, professional_id)
+        insurance_debt = sum((Decimal(r.balance_pending) for r in insurance_rows), Decimal("0"))
+        paid_total, paid_count = self.payments.sum_paid_between_for_professional(
+            organization_id, professional_id, today_start, today_end,
+        )
+        pending_claims = len(insurance_rows)
+        unclosed = self.appointments.count_unclosed_attended(
+            organization_id, professional_id=professional_id,
+        )
+        overdue = self.appointments.count_overdue_unresolved(
+            organization_id, now, professional_id=professional_id,
+        )
         return CollectionsSummary(
-            private_debt_total=self.payments.sum_private_debt(organization_id),
-            insurance_debt_total=self.claims.sum_insurance_debt(organization_id),
+            private_debt_total=private_debt,
+            insurance_debt_total=insurance_debt,
             payments_today_total=paid_total,
             payments_today_count=paid_count,
-            pending_insurance_claims=self.claims.count_pending(organization_id),
-            unclosed_attended=self.appointments.count_unclosed_attended(organization_id),
-            overdue_unresolved=self.appointments.count_overdue_unresolved(organization_id, now),
+            pending_insurance_claims=pending_claims,
+            unclosed_attended=unclosed,
+            overdue_unresolved=overdue,
         )
 
     def list_items(
@@ -71,9 +101,9 @@ class CollectionsService:
         if tab == "private":
             return self._list_private_debt(organization_id, professional_id)
         if tab == "insurance":
-            return self._list_insurance_open(organization_id)
+            return self._list_insurance_open(organization_id, professional_id)
         if tab == "recent":
-            return self._list_recent_payments(organization_id)
+            return self._list_recent_payments(organization_id, professional_id)
         return self._list_all_pending(organization_id, professional_id)
 
     def _list_private_debt(
@@ -131,11 +161,16 @@ class CollectionsService:
             )
         return rows
 
-    def _list_insurance_open(self, organization_id: uuid.UUID) -> list[CollectionRow]:
+    def _list_insurance_open(
+        self,
+        organization_id: uuid.UUID,
+        professional_id: uuid.UUID | None = None,
+    ) -> list[CollectionRow]:
         stmt = (
             select(InsuranceClaim, Patient, HealthInsurance)
             .join(Patient, InsuranceClaim.patient_id == Patient.id)
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
+            .outerjoin(Appointment, InsuranceClaim.appointment_id == Appointment.id)
             .where(
                 InsuranceClaim.organization_id == organization_id,
                 InsuranceClaim.status.in_(
@@ -144,6 +179,8 @@ class CollectionsService:
             )
             .order_by(InsuranceClaim.service_date.desc())
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         today = date.today()
         rows: list[CollectionRow] = []
         for claim, patient, insurance in self.db.execute(stmt).all():
@@ -169,9 +206,15 @@ class CollectionsService:
             )
         return rows
 
-    def _list_recent_payments(self, organization_id: uuid.UUID) -> list[CollectionRow]:
+    def _list_recent_payments(
+        self,
+        organization_id: uuid.UUID,
+        professional_id: uuid.UUID | None = None,
+    ) -> list[CollectionRow]:
         rows: list[CollectionRow] = []
-        for payment, patient, prof in self.payments.list_recent_paid(organization_id, limit=50):
+        for payment, patient, prof in self.payments.list_recent_paid(
+            organization_id, limit=50, professional_id=professional_id,
+        ):
             paid_day = (
                 payment.paid_at.date()
                 if payment.paid_at
@@ -204,7 +247,7 @@ class CollectionsService:
         professional_id: uuid.UUID | None,
     ) -> list[CollectionRow]:
         private_rows = self._list_private_debt(organization_id, professional_id)
-        insurance_rows = self._list_insurance_open(organization_id)
+        insurance_rows = self._list_insurance_open(organization_id, professional_id)
         combined = private_rows + insurance_rows
         combined.sort(key=lambda r: r.days_pending, reverse=True)
         return combined

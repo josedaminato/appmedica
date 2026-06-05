@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { Calendar, ChevronLeft, ChevronRight, MessageCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -13,9 +13,22 @@ import {
 } from "@/components/ui/select"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { PageHeader } from "@/components/shared/PageHeader"
-import { AppointmentStatusBadge, ClosureStatusBadge } from "@/components/shared/StatusBadge"
+import {
+  AppointmentStatusBadge,
+  AttentionTypeBadge,
+  ClosureStatusBadge,
+} from "@/components/shared/StatusBadge"
+import { attentionLabelForAppointment } from "@/lib/attention-label"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
-import { formatDate, formatMoney, formatTime, toDateParam } from "@/lib/format"
+import { EmptyState } from "@/components/shared/EmptyState"
+import {
+  appointmentDurationMinutes,
+  formatDate,
+  formatMoney,
+  formatTimeRange,
+  toDateParam,
+} from "@/lib/format"
+import { buildAppointmentReminderMessage, buildWhatsAppUrl } from "@/lib/whatsapp"
 import { ApiError } from "@/lib/api-client"
 import type {
   Appointment,
@@ -46,8 +59,11 @@ function readClosureParam(params: URLSearchParams): string {
   return "all"
 }
 import { listHealthInsurances } from "@/features/insurances/api"
+import { useRoleScope } from "@/hooks/use-role-scope"
 import { listTeam } from "@/features/users/api"
 import * as apptApi from "../api"
+import { AgendaDurationSettings } from "../components/AgendaDurationSettings"
+import { CalendarSyncDialog } from "../components/CalendarSyncDialog"
 import { CloseAppointmentDialog } from "../components/CloseAppointmentDialog"
 import { AddPaymentDialog } from "../components/AddPaymentDialog"
 import {
@@ -71,6 +87,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
 
 export function AgendaPage() {
   const qc = useQueryClient()
+  const { lockedProfessionalId, canFilterByProfessional } = useRoleScope()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialDate = searchParams.get("date")
   const initialStatus = searchParams.get("status")
@@ -79,8 +96,12 @@ export function AgendaPage() {
   )
   const [view, setView] = useState<"day" | "week">("day")
   const [professionalId, setProfessionalId] = useState<string>(
-    () => searchParams.get("professional_id") ?? "all",
+    () => lockedProfessionalId ?? searchParams.get("professional_id") ?? "all",
   )
+
+  useEffect(() => {
+    if (lockedProfessionalId) setProfessionalId(lockedProfessionalId)
+  }, [lockedProfessionalId])
   const [statusFilter, setStatusFilter] = useState<string>(() =>
     initialStatus && VALID_STATUSES.has(initialStatus as AppointmentStatus)
       ? initialStatus
@@ -131,6 +152,7 @@ export function AgendaPage() {
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
   const [actionError, setActionError] = useState("")
   const [actionSuccess, setActionSuccess] = useState("")
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   useEffect(() => {
     if (!actionSuccess) return
@@ -162,7 +184,11 @@ export function AgendaPage() {
       }),
   })
 
-  const { data: team = [] } = useQuery({ queryKey: ["team"], queryFn: listTeam })
+  const { data: team = [] } = useQuery({
+    queryKey: ["team"],
+    queryFn: listTeam,
+    enabled: canFilterByProfessional,
+  })
   const { data: insurances = [] } = useQuery({ queryKey: ["insurances"], queryFn: () => listHealthInsurances() })
 
   const action = useMutation({
@@ -264,11 +290,21 @@ export function AgendaPage() {
         title="Agenda"
         description="Gestioná turnos y cerrá el resultado administrativo en segundos."
         action={
-          <Button size="sm" asChild>
-            <Link to="/agenda/new"><Plus className="h-4 w-4 mr-1" />Nuevo turno</Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => setCalendarOpen(true)}>
+              <Calendar className="h-4 w-4 mr-1" />
+              Calendario
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/agenda/new"><Plus className="h-4 w-4 mr-1" />Nuevo turno</Link>
+            </Button>
+          </div>
         }
       />
+
+      <CalendarSyncDialog open={calendarOpen} onOpenChange={setCalendarOpen} />
+
+      <AgendaDurationSettings />
 
       {actionSuccess && <FeedbackBanner message={actionSuccess} variant="success" />}
       {actionError && <FeedbackBanner message={actionError} variant="error" />}
@@ -293,21 +329,23 @@ export function AgendaPage() {
             <SelectItem value="week">Semana</SelectItem>
           </SelectContent>
         </Select>
-        <Select
-          value={professionalId}
-          onValueChange={(v) => {
-            setProfessionalId(v)
-            syncUrl({ professional_id: v })
-          }}
-        >
-          <SelectTrigger className="w-44"><SelectValue placeholder="Profesional" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            {team.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {canFilterByProfessional && (
+          <Select
+            value={professionalId}
+            onValueChange={(v) => {
+              setProfessionalId(v)
+              syncUrl({ professional_id: v })
+            }}
+          >
+            <SelectTrigger className="w-44"><SelectValue placeholder="Profesional" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {team.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select
           value={statusFilter}
           onValueChange={(v) => {
@@ -355,12 +393,15 @@ export function AgendaPage() {
       {isLoading ? (
         <LoadingSkeleton />
       ) : appointments.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-12 text-center">
-          <p className="text-muted-foreground text-sm">No hay turnos en este período</p>
-          <Button size="sm" className="mt-4" asChild>
-            <Link to="/agenda/new">Crear turno</Link>
-          </Button>
-        </div>
+        <EmptyState
+          title="No hay turnos en este período"
+          description="Probá otro día o ajustá los filtros de estado y cierre."
+          action={
+            <Button size="sm" asChild>
+              <Link to="/agenda/new">Crear turno</Link>
+            </Button>
+          }
+        />
       ) : (
         Object.entries(grouped)
           .sort(([a], [b]) => a.localeCompare(b))
@@ -452,20 +493,46 @@ function AppointmentRow({
     <div className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-3 bg-card transition-colors ${rowClass}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm tabular-nums">{formatTime(a.start_at)}</span>
+          <span className="font-medium text-sm tabular-nums">
+            {formatTimeRange(a.start_at, a.end_at)}
+            <span className="text-muted-foreground font-normal ml-1">
+              ({appointmentDurationMinutes(a.start_at, a.end_at)} min)
+            </span>
+          </span>
           <Link to={`/patients/${a.patient_id}`} className="font-medium hover:text-primary truncate">
             {patientName}
           </Link>
+          <AttentionTypeBadge
+            attentionType={a.attention_type}
+            healthInsuranceName={a.health_insurance?.name}
+          />
           <AppointmentStatusBadge status={a.status} />
           <ClosureStatusBadge status={a.closure_status} showUnclosed={needsClose} />
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {a.modality === "online" ? "Online" : "Presencial"} ·{" "}
-          {a.attention_type === "health_insurance" ? "Obra social" : "Particular"}
+          {a.modality === "online" ? "Online" : "Presencial"}
           {a.expected_amount ? ` · ${formatMoney(a.expected_amount)}` : ""}
+          <span className="sr-only"> — {attentionLabelForAppointment(a)}</span>
         </p>
       </div>
       <div className="flex flex-wrap gap-1 shrink-0">
+        {a.patient?.phone &&
+          (a.status === "pending" || a.status === "confirmed") && (
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={buildWhatsAppUrl(
+                  a.patient.phone,
+                  buildAppointmentReminderMessage(a.patient.first_name, a.start_at),
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Abrir WhatsApp con mensaje de recordatorio (sin costo de API)"
+              >
+                <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                WhatsApp
+              </a>
+            </Button>
+          )}
         {a.status === "pending" && (
           <Button size="sm" variant="secondary" disabled={actionPending} onClick={() => onAction("confirm")}>
             Confirmar

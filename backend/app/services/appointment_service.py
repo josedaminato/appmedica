@@ -8,6 +8,8 @@ from app.models.appointment import Appointment
 from app.models.enums import AppointmentClosureStatus, AppointmentStatus
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.patient_repository import PatientRepository
+from app.services.appointment_scheduling import assert_no_overlap
+from app.services.reminder_service import ReminderService
 from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentRescheduleRequest,
@@ -81,10 +83,19 @@ class AppointmentService:
         if data.end_at <= data.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
 
+        professional_id = data.professional_id or default_professional_id
+        assert_no_overlap(
+            self.repo,
+            organization_id,
+            professional_id=professional_id,
+            start_at=data.start_at,
+            end_at=data.end_at,
+        )
+
         appointment = Appointment(
             organization_id=organization_id,
             patient_id=data.patient_id,
-            professional_id=data.professional_id or default_professional_id,
+            professional_id=professional_id,
             start_at=data.start_at,
             end_at=data.end_at,
             modality=data.modality,
@@ -97,6 +108,7 @@ class AppointmentService:
         )
         self.repo.create(appointment)
         self.db.commit()
+        ReminderService(self.db).schedule_for_appointment(organization_id, appointment.id)
         return self.get_appointment(organization_id, appointment.id)
 
     def update_appointment(
@@ -115,6 +127,15 @@ class AppointmentService:
             setattr(appointment, field, value)
         if appointment.end_at <= appointment.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
+
+        assert_no_overlap(
+            self.repo,
+            organization_id,
+            professional_id=appointment.professional_id,
+            start_at=appointment.start_at,
+            end_at=appointment.end_at,
+            exclude_appointment_id=appointment_id,
+        )
 
         self.repo.update(appointment)
         self.db.commit()
@@ -139,12 +160,14 @@ class AppointmentService:
         return self.get_appointment(organization_id, appointment_id)
 
     def confirm(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
-        return self._transition(
+        result = self._transition(
             organization_id,
             appointment_id,
             allowed_from=[AppointmentStatus.PENDING],
             new_status=AppointmentStatus.CONFIRMED,
         )
+        ReminderService(self.db).schedule_for_appointment(organization_id, appointment_id)
+        return result
 
     def mark_attended(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
         return self._transition(
@@ -163,6 +186,7 @@ class AppointmentService:
         )
 
     def cancel(self, organization_id: uuid.UUID, appointment_id: uuid.UUID) -> AppointmentResponse:
+        ReminderService(self.db).cancel_for_appointment(organization_id, appointment_id)
         return self._transition(
             organization_id,
             appointment_id,
@@ -185,10 +209,19 @@ class AppointmentService:
         if data.end_at <= data.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
 
+        professional_id = data.professional_id or old.professional_id or default_professional_id
+        assert_no_overlap(
+            self.repo,
+            organization_id,
+            professional_id=professional_id,
+            start_at=data.start_at,
+            end_at=data.end_at,
+        )
+
         new_appt = Appointment(
             organization_id=organization_id,
             patient_id=old.patient_id,
-            professional_id=data.professional_id or old.professional_id or default_professional_id,
+            professional_id=professional_id,
             start_at=data.start_at,
             end_at=data.end_at,
             modality=old.modality,
@@ -204,4 +237,7 @@ class AppointmentService:
         old.rescheduled_to_id = new_appt.id
         self.repo.update(old)
         self.db.commit()
+        reminders = ReminderService(self.db)
+        reminders.cancel_for_appointment(organization_id, appointment_id)
+        reminders.schedule_for_appointment(organization_id, new_appt.id)
         return self.get_appointment(organization_id, new_appt.id)

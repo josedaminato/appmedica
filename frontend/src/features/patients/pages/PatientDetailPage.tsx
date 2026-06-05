@@ -9,6 +9,7 @@ import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { AppointmentStatusBadge, ClosureStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDate, formatMoney, formatTime } from "@/lib/format"
 import { ApiError } from "@/lib/api-client"
+import { useRoleScope } from "@/hooks/use-role-scope"
 import { PatientFormDialog } from "../components/PatientFormDialog"
 import * as patientsApi from "../api"
 
@@ -16,6 +17,7 @@ export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { isStaff } = useRoleScope()
   const [editOpen, setEditOpen] = useState(false)
   const [error, setError] = useState("")
 
@@ -85,13 +87,15 @@ export function PatientDetailPage() {
         <Button variant="outline" onClick={() => setEditOpen(true)}>
           <Pencil className="h-4 w-4 mr-2" />Editar
         </Button>
-        <Button
-          variant="destructive"
-          onClick={() => { if (confirm("¿Dar de baja?")) deleteMutation.mutate() }}
-          disabled={deleteMutation.isPending}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />Dar de baja
-        </Button>
+        {!isStaff && (
+          <Button
+            variant="destructive"
+            onClick={() => { if (confirm("¿Dar de baja?")) deleteMutation.mutate() }}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />Dar de baja
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

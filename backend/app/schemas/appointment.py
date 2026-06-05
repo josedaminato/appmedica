@@ -45,6 +45,7 @@ class PatientBrief(BaseModel):
     first_name: str
     last_name: str
     dni: str
+    phone: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -52,6 +53,13 @@ class PatientBrief(BaseModel):
 class ProfessionalBrief(BaseModel):
     id: uuid.UUID
     full_name: str
+
+    model_config = {"from_attributes": True}
+
+
+class HealthInsuranceBrief(BaseModel):
+    id: uuid.UUID
+    name: str
 
     model_config = {"from_attributes": True}
 
@@ -75,6 +83,7 @@ class AppointmentResponse(BaseModel):
     updated_at: datetime
     patient: PatientBrief | None = None
     professional: ProfessionalBrief | None = None
+    health_insurance: HealthInsuranceBrief | None = None
 
     model_config = {"from_attributes": True}
 

@@ -115,6 +115,20 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         )
         return list(self.db.execute(stmt).all())
 
+    def list_all_with_insurance_and_patient(
+        self,
+        organization_id: uuid.UUID,
+    ) -> list[tuple[InsuranceClaim, Patient, HealthInsurance]]:
+        """Una sola query para exportaciones (evita N+1 por paciente)."""
+        stmt = (
+            select(InsuranceClaim, Patient, HealthInsurance)
+            .join(Patient, InsuranceClaim.patient_id == Patient.id)
+            .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
+            .where(InsuranceClaim.organization_id == organization_id)
+            .order_by(InsuranceClaim.service_date.desc())
+        )
+        return list(self.db.execute(stmt).all())
+
     def sum_collected_between(
         self,
         organization_id: uuid.UUID,

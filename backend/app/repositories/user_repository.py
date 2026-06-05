@@ -19,6 +19,17 @@ class UserRepository(BaseRepository[User]):
         )
         return self.db.scalars(stmt).first()
 
+    def get_by_calendar_feed_token(self, token: str) -> User | None:
+        stmt = (
+            select(User)
+            .options(joinedload(User.organization))
+            .where(
+                User.calendar_feed_token == token,
+                User.is_active.is_(True),
+            )
+        )
+        return self.db.scalars(stmt).first()
+
     def get_by_email(self, email: str) -> User | None:
         stmt = (
             select(User)

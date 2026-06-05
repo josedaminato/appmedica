@@ -11,6 +11,7 @@ interface AuthContextValue {
   register: (data: authApi.RegisterPayload) => Promise<void>
   logout: () => Promise<void>
   setToken: (token: string) => void
+  loadUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -75,8 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       register,
       logout,
       setToken,
+      loadUser,
     }),
-    [user, isLoading, login, register, logout, setToken],
+    [user, isLoading, login, register, logout, setToken, loadUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

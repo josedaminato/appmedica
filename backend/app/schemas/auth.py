@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -36,6 +37,8 @@ class OrganizationBrief(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    default_appointment_duration_minutes: int = 30
+    default_private_session_amount: Decimal | None = None
 
     model_config = {"from_attributes": True}
 
