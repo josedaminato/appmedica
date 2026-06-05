@@ -1,10 +1,12 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from app.core.timezone import local_day_bounds_utc, now_local, org_timezone
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.schemas.appointment import AppointmentResponse
 from app.schemas.dashboard import DashboardSummary
@@ -16,16 +18,21 @@ class DashboardService:
         self.appointments = AppointmentRepository(db)
         self.payments = PaymentRepository(db)
         self.claims = InsuranceClaimRepository(db)
+        self.organizations = OrganizationRepository(db)
 
     def get_summary(self, organization_id: uuid.UUID) -> DashboardSummary:
         now = datetime.now(timezone.utc)
-        today = now.date()
+        tz = org_timezone(self.organizations.get_by_id(organization_id))
+        today_local = now_local(tz).date()
+        day_start, day_end = local_day_bounds_utc(today_local, tz)
         since_30 = now - timedelta(days=30)
 
         upcoming = self.appointments.list_upcoming(organization_id, now, limit=5)
 
         return DashboardSummary(
-            appointments_today=self.appointments.count_today(organization_id, today),
+            appointments_today=self.appointments.count_active_between(
+                organization_id, start=day_start, end=day_end,
+            ),
             unclosed_attended=self.appointments.count_unclosed_attended(organization_id),
             overdue_unresolved=self.appointments.count_overdue_unresolved(organization_id, now),
             private_debt_total=self.payments.sum_private_debt(organization_id),

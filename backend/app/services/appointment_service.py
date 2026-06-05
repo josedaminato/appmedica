@@ -1,14 +1,16 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
 from app.core.rbac import assert_can_access_appointment
+from app.core.timezone import local_date_range_bounds_utc, org_timezone
 from app.models.appointment import Appointment
 from app.models.enums import AppointmentClosureStatus, AppointmentStatus, UserRole
 from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.patient_repository import PatientRepository
 from app.services.appointment_scheduling import assert_no_overlap
 from app.services.reminder_service import ReminderService
@@ -25,6 +27,7 @@ class AppointmentService:
         self.db = db
         self.repo = AppointmentRepository(db)
         self.patients = PatientRepository(db)
+        self.organizations = OrganizationRepository(db)
 
     def list_appointments(
         self,
@@ -37,35 +40,25 @@ class AppointmentService:
         patient_q: str | None,
         closure_status: AppointmentClosureStatus | None,
     ) -> list[AppointmentResponse]:
+        tz = org_timezone(self.organizations.get_by_id(organization_id))
         if view == "week":
-            week_start = reference_date - timedelta(days=reference_date.weekday())
-            week_end = week_start + timedelta(days=7)
-            items = self.repo.list_in_range(
-                organization_id,
-                start=datetime.min.replace(tzinfo=timezone.utc),
-                end=datetime.max.replace(tzinfo=timezone.utc),
-                professional_id=professional_id,
-                status=status,
-                patient_q=patient_q,
-                closure_status=closure_status,
-                use_date_filter=True,
-                start_date=week_start,
-                end_date=week_end,
-            )
+            range_start = reference_date - timedelta(days=reference_date.weekday())
+            range_end = range_start + timedelta(days=7)
         else:
-            day_end = reference_date + timedelta(days=1)
-            items = self.repo.list_in_range(
-                organization_id,
-                start=datetime.min.replace(tzinfo=timezone.utc),
-                end=datetime.max.replace(tzinfo=timezone.utc),
-                professional_id=professional_id,
-                status=status,
-                patient_q=patient_q,
-                closure_status=closure_status,
-                use_date_filter=True,
-                start_date=reference_date,
-                end_date=day_end,
-            )
+            range_start = reference_date
+            range_end = reference_date + timedelta(days=1)
+
+        # Ventana del rango local del consultorio expresada en limites UTC reales.
+        start_utc, end_utc = local_date_range_bounds_utc(range_start, range_end, tz)
+        items = self.repo.list_in_range(
+            organization_id,
+            start=start_utc,
+            end=end_utc,
+            professional_id=professional_id,
+            status=status,
+            patient_q=patient_q,
+            closure_status=closure_status,
+        )
         return [AppointmentResponse.model_validate(a) for a in items]
 
     def get_appointment(

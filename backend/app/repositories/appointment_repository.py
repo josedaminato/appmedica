@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Date, cast, func, or_, select
 from sqlalchemy.orm import Session, joinedload
@@ -130,9 +130,14 @@ class AppointmentRepository(BaseRepository[Appointment]):
         stmt = stmt.order_by(Appointment.start_at.asc())
         return list(self.db.scalars(stmt).unique().all())
 
-    def count_today(self, organization_id: uuid.UUID, day: date) -> int:
-        start = datetime.combine(day, datetime.min.time(), tzinfo=timezone.utc)
-        end = start + timedelta(days=1)
+    def count_active_between(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        start: datetime,
+        end: datetime,
+    ) -> int:
+        """Cuenta turnos activos en [start, end) por instante UTC (no por fecha UTC)."""
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
             Appointment.start_at >= start,
@@ -252,18 +257,19 @@ class AppointmentRepository(BaseRepository[Appointment]):
             stmt = stmt.where(Appointment.patient_id == patient_id)
         return self.db.scalar(stmt) or 0
 
-    def count_in_date_range(
+    def count_between(
         self,
         organization_id: uuid.UUID,
-        start_date: date,
-        end_date_exclusive: date,
+        start: datetime,
+        end: datetime,
         *,
         status: AppointmentStatus | None = None,
     ) -> int:
+        """Cuenta turnos en [start, end) por instante UTC (no por fecha UTC)."""
         conditions = [
             Appointment.organization_id == organization_id,
-            cast(Appointment.start_at, Date) >= start_date,
-            cast(Appointment.start_at, Date) < end_date_exclusive,
+            Appointment.start_at >= start,
+            Appointment.start_at < end,
             Appointment.status != AppointmentStatus.RESCHEDULED,
         ]
         if status is not None:

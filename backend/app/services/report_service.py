@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import uuid
 from calendar import monthrange
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request
+from app.core.timezone import local_date_range_bounds_utc, org_timezone
 from app.models.enums import AppointmentStatus
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.schemas.report import MonthlyReport
 
@@ -29,18 +31,13 @@ _MONTH_NAMES = (
 )
 
 
-def _month_bounds(year: int, month: int) -> tuple[datetime, datetime, date, date]:
+def _month_date_bounds(year: int, month: int) -> tuple[date, date]:
     if month < 1 or month > 12:
         raise bad_request("Mes inválido")
     start_date = date(year, month, 1)
     last_day = monthrange(year, month)[1]
     end_date_exclusive = start_date + timedelta(days=last_day)
-    start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-    if month == 12:
-        end_dt = datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-    else:
-        end_dt = datetime(year, month + 1, 1, tzinfo=timezone.utc)
-    return start_dt, end_dt, start_date, end_date_exclusive
+    return start_date, end_date_exclusive
 
 
 class ReportService:
@@ -49,22 +46,26 @@ class ReportService:
         self.appointments = AppointmentRepository(db)
         self.payments = PaymentRepository(db)
         self.claims = InsuranceClaimRepository(db)
+        self.organizations = OrganizationRepository(db)
 
     def get_monthly_report(self, organization_id: uuid.UUID, year: int, month: int) -> MonthlyReport:
         if year < 2000 or year > 2100:
             raise bad_request("Año inválido")
 
-        start_dt, end_dt, start_date, end_date_exclusive = _month_bounds(year, month)
+        start_date, end_date_exclusive = _month_date_bounds(year, month)
+        tz = org_timezone(self.organizations.get_by_id(organization_id))
+        # Mes en hora del consultorio, expresado en limites UTC reales.
+        start_dt, end_dt = local_date_range_bounds_utc(start_date, end_date_exclusive, tz)
 
-        appt_total = self.appointments.count_in_date_range(organization_id, start_date, end_date_exclusive)
-        appt_attended = self.appointments.count_in_date_range(
-            organization_id, start_date, end_date_exclusive, status=AppointmentStatus.ATTENDED,
+        appt_total = self.appointments.count_between(organization_id, start_dt, end_dt)
+        appt_attended = self.appointments.count_between(
+            organization_id, start_dt, end_dt, status=AppointmentStatus.ATTENDED,
         )
-        appt_no_show = self.appointments.count_in_date_range(
-            organization_id, start_date, end_date_exclusive, status=AppointmentStatus.NO_SHOW,
+        appt_no_show = self.appointments.count_between(
+            organization_id, start_dt, end_dt, status=AppointmentStatus.NO_SHOW,
         )
-        appt_cancelled = self.appointments.count_in_date_range(
-            organization_id, start_date, end_date_exclusive, status=AppointmentStatus.CANCELLED,
+        appt_cancelled = self.appointments.count_between(
+            organization_id, start_dt, end_dt, status=AppointmentStatus.CANCELLED,
         )
 
         private_total, private_count = self.payments.sum_paid_between(

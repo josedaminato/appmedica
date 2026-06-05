@@ -23,7 +23,9 @@ def test_monthly_report_aggregates(db):
     pay_repo = service.payments
     claim_repo = service.claims
 
-    appt_repo.count_in_date_range = MagicMock(side_effect=[10, 7, 1, 2])
+    # Sin organizacion -> zona horaria por defecto (Argentina, UTC-3).
+    service.organizations.get_by_id = MagicMock(return_value=None)
+    appt_repo.count_between = MagicMock(side_effect=[10, 7, 1, 2])
     pay_repo.sum_paid_between = MagicMock(return_value=(Decimal("50000"), 3))
     claim_repo.sum_collected_between = MagicMock(return_value=(Decimal("120000"), 2))
     claim_repo.count_by_service_date_range = MagicMock(return_value=4)
@@ -40,16 +42,17 @@ def test_monthly_report_aggregates(db):
     assert report.insurance_collected_total == Decimal("120000")
     assert report.total_collected == Decimal("170000")
 
-    start_dt = datetime(2026, 6, 1, tzinfo=timezone.utc)
-    end_dt = datetime(2026, 7, 1, tzinfo=timezone.utc)
+    # Junio 2026 en hora Argentina (UTC-3): 00:00 local = 03:00 UTC.
+    start_dt = datetime(2026, 6, 1, 3, 0, tzinfo=timezone.utc)
+    end_dt = datetime(2026, 7, 1, 3, 0, tzinfo=timezone.utc)
     pay_repo.sum_paid_between.assert_called_once_with(org_id, start_dt, end_dt)
     claim_repo.sum_collected_between.assert_called_once_with(org_id, start_dt, end_dt)
     claim_repo.count_by_service_date_range.assert_called_once_with(
         org_id, date(2026, 6, 1), date(2026, 7, 1),
     )
 
-    appt_repo.count_in_date_range.assert_any_call(
-        org_id, date(2026, 6, 1), date(2026, 7, 1), status=AppointmentStatus.ATTENDED,
+    appt_repo.count_between.assert_any_call(
+        org_id, start_dt, end_dt, status=AppointmentStatus.ATTENDED,
     )
 
 
