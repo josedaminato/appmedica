@@ -19,7 +19,7 @@ settings = get_settings()
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
-_is_production = settings.app_env.lower() == "production"
+_is_production = settings.is_production
 
 
 async def _daily_agenda_digest_loop() -> None:

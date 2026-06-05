@@ -1,6 +1,10 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_JWT_SECRET = "change-me-in-production"
+DEFAULT_DB_PASSWORD = "appmedica_secret"
 
 
 class Settings(BaseSettings):
@@ -56,6 +60,40 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.lower() == "production"
+
+    @model_validator(mode="after")
+    def _enforce_production_safety(self) -> "Settings":
+        """En producción, rechaza arrancar con secretos por defecto o débiles.
+
+        Critico al vender a múltiples clientes: un JWT_SECRET por defecto
+        permitiría falsificar tokens y acceder a cualquier consultorio.
+        """
+        if not self.is_production:
+            return self
+
+        problems: list[str] = []
+        if self.jwt_secret == DEFAULT_JWT_SECRET or len(self.jwt_secret) < 32:
+            problems.append(
+                "JWT_SECRET inseguro: configurá un valor único de >=32 caracteres "
+                "(generá uno con: openssl rand -hex 32)."
+            )
+        if DEFAULT_DB_PASSWORD in self.database_url:
+            problems.append(
+                "DATABASE_URL usa la contraseña por defecto: definí una contraseña fuerte."
+            )
+        if "*" in self.cors_origins_list:
+            problems.append("CORS_ORIGINS no debe ser '*' en producción.")
+
+        if problems:
+            raise ValueError(
+                "Configuración insegura para producción (APP_ENV=production):\n- "
+                + "\n- ".join(problems)
+            )
+        return self
 
 
 @lru_cache
