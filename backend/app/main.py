@@ -6,11 +6,13 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException
+from app.core.rate_limit import limiter
 from app.db.session import SessionLocal
 from app.services.daily_agenda_digest_service import DailyAgendaDigestService
 from app.services.reminder_service import ReminderService
@@ -92,6 +94,8 @@ app = FastAPI(
     openapi_url=None if _is_production else "/openapi.json",
 )
 
+app.state.limiter = limiter
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -99,6 +103,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(_: Request, exc: RateLimitExceeded) -> JSONResponse:
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": {
+                "code": "RATE_LIMITED",
+                "message": "Demasiados intentos. Esperá un momento e intentá de nuevo.",
+            }
+        },
+    )
 
 
 @app.exception_handler(AppException)

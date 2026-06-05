@@ -22,6 +22,12 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Rate limiting (anti fuerza bruta en endpoints de autenticacion)
+    rate_limit_enabled: bool = True
+    rate_limit_login: str = "10/minute"
+    rate_limit_register: str = "5/hour"
+    rate_limit_password_reset: str = "5/minute"
+
     # Recordatorios de turnos
     reminders_enabled: bool = True
     reminder_hours_before: int = 24

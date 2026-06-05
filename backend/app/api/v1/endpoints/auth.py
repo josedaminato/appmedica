@@ -1,6 +1,7 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 
 from app.core.dependencies import CurrentUser, DbSession
+from app.core.rate_limit import limiter, login_limit, password_reset_limit, register_limit
 from app.schemas.auth import (
     AuthResponse,
     ForgotPasswordRequest,
@@ -17,12 +18,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterRequest, db: DbSession) -> AuthResponse:
+@limiter.limit(register_limit)
+def register(request: Request, data: RegisterRequest, db: DbSession) -> AuthResponse:
     return AuthService(db).register(data)
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(data: LoginRequest, db: DbSession) -> AuthResponse:
+@limiter.limit(login_limit)
+def login(request: Request, data: LoginRequest, db: DbSession) -> AuthResponse:
     return AuthService(db).login(data)
 
 
@@ -32,13 +35,15 @@ def logout() -> MessageResponse:
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-def forgot_password(data: ForgotPasswordRequest, db: DbSession) -> MessageResponse:
+@limiter.limit(password_reset_limit)
+def forgot_password(request: Request, data: ForgotPasswordRequest, db: DbSession) -> MessageResponse:
     message = AuthService(db).forgot_password(data)
     return MessageResponse(message=message)
 
 
 @router.post("/reset-password", response_model=TokenResponse)
-def reset_password(data: ResetPasswordRequest, db: DbSession) -> TokenResponse:
+@limiter.limit(password_reset_limit)
+def reset_password(request: Request, data: ResetPasswordRequest, db: DbSession) -> TokenResponse:
     return AuthService(db).reset_password(data)
 
 
