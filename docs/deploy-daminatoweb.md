@@ -1,5 +1,7 @@
 # Deploy — daminatoweb.com
 
+> **Guía actualizada (dominio raíz + landing):** [deploy-daminatoweb-vps.md](./deploy-daminatoweb-vps.md)
+
 Configuración concreta para tu Hostinger KVM 1.
 
 | Dato | Valor |

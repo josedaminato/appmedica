@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select"
 import { useQuery } from "@tanstack/react-query"
 import { listHealthInsurances } from "@/features/insurances/api"
+import { InsuranceCatalogHint } from "@/features/insurances/components/InsuranceCatalogHint"
 import type { Patient } from "@/types/api"
 import type { PatientPayload } from "../api"
 
@@ -183,6 +184,7 @@ export function PatientFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            {insurances.length === 0 && <InsuranceCatalogHint />}
           </div>
           <div className="space-y-2">
             <Label>Nº afiliado</Label>

@@ -24,7 +24,7 @@ export function TeamPage() {
   const [success, setSuccess] = useState("")
 
   if (user && user.role !== "owner") {
-    return <Navigate to="/" replace />
+    return <Navigate to="/inicio" replace />
   }
 
   const { data: members = [], isLoading } = useQuery({

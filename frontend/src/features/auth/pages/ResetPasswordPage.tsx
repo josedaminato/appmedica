@@ -25,7 +25,7 @@ export function ResetPasswordPage() {
     try {
       const res = await resetPassword(token, password)
       localStorage.setItem(TOKEN_KEY, res.access_token)
-      navigate("/")
+      navigate("/inicio")
     } catch {
       setError("No se pudo restablecer la contraseña")
     } finally {

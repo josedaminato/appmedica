@@ -26,7 +26,7 @@ export function RegisterPage() {
     setLoading(true)
     try {
       await register(form)
-      navigate("/")
+      navigate("/inicio")
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al registrarse")
     } finally {
@@ -68,6 +68,8 @@ export function RegisterPage() {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             ¿Ya tenés cuenta? <Link to="/login" className="text-primary hover:underline">Ingresar</Link>
+            {" · "}
+            <Link to="/" className="hover:text-foreground">Volver al inicio</Link>
           </p>
         </CardContent>
       </Card>

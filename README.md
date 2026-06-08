@@ -21,7 +21,7 @@ cp .env.production.example .env
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Guías: [docs/DEPLOY.md](docs/DEPLOY.md) · [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
+Guías: [docs/deploy-daminatoweb-vps.md](docs/deploy-daminatoweb-vps.md) · [docs/DEPLOY.md](docs/DEPLOY.md) · [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
 
 
 ## Inicio rápido (Windows)

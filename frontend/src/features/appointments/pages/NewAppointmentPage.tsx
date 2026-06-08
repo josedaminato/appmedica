@@ -17,6 +17,7 @@ import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { useAuth } from "@/features/auth/AuthContext"
 import { listPatients } from "@/features/patients/api"
 import { listHealthInsurances } from "@/features/insurances/api"
+import { InsuranceCatalogHint } from "@/features/insurances/components/InsuranceCatalogHint"
 import { listTeam } from "@/features/users/api"
 import { ApiError } from "@/lib/api-client"
 import { conflictMessage } from "@/lib/appointment-schedule"
@@ -223,6 +224,7 @@ export function NewAppointmentPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {insurances.length === 0 && <InsuranceCatalogHint />}
               </div>
             )}
             {attentionType === "private" && (

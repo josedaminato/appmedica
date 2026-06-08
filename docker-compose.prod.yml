@@ -1,7 +1,7 @@
 # AppMedica — producción (VPS Ubuntu 24.04)
 #
-# Nginx del HOST hace proxy:
-#   /     → frontend:3000 (contenedor nginx:alpine)
+# Nginx del HOST hace proxy (ver nginx/daminatoweb.com.conf):
+#   /     → frontend:3000 (React + landing)
 #   /api/ → backend:8000
 #
 # Uso:
@@ -80,7 +80,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://app.daminatoweb.com/api/v1}
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
     container_name: appmedica-frontend
     restart: always
     depends_on:

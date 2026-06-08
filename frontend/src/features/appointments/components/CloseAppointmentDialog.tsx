@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { Appointment, AppointmentClosureStatus, HealthInsurance } from "@/types/api"
+import { InsuranceCatalogHint } from "@/features/insurances/components/InsuranceCatalogHint"
 import type { ClosePayload } from "../api"
 
 interface CloseAppointmentDialogProps {
@@ -140,6 +141,7 @@ export function CloseAppointmentDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {insurances.length === 0 && <InsuranceCatalogHint />}
             </div>
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}

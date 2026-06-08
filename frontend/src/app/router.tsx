@@ -13,12 +13,14 @@ import { PatientsPage } from "@/features/patients/pages/PatientsPage"
 import { PatientDetailPage } from "@/features/patients/pages/PatientDetailPage"
 import { ReportsPage } from "@/features/reports/pages/ReportsPage"
 import { TeamPage } from "@/features/users/pages/TeamPage"
+import { HomePage } from "@/features/marketing/pages/HomePage"
 import { ProtectedRoute } from "./ProtectedRoute"
 
 export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -26,7 +28,7 @@ export function AppRouter() {
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>
-            <Route index element={<DashboardPage />} />
+            <Route path="inicio" element={<DashboardPage />} />
             <Route path="agenda" element={<AgendaPage />} />
             <Route path="agenda/new" element={<NewAppointmentPage />} />
             <Route path="patients" element={<PatientsPage />} />

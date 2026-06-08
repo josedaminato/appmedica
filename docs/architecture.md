@@ -41,7 +41,7 @@ Reglas en `app/core/rbac.py`; filtro aplicado en agenda, cobros y resúmenes.
 | Dashboard + alertas operativas | ✅ |
 | Pacientes (CRUD, import Excel/CSV) | ✅ |
 | Agenda (estados, cierre, reprogramar, cobro) | ✅ |
-| Obras sociales (catálogo, reclamos, ranking) | ✅ (editar OS en UI: pendiente) |
+| Obras sociales (catálogo, reclamos, ranking) | ✅ |
 | Cobros (`/payments`) | ✅ |
 | Reportes mensuales + export | ✅ |
 | Equipo (CRUD usuarios, solo owner) | ✅ |

@@ -23,7 +23,7 @@ export function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate("/")
+      navigate("/inicio")
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al iniciar sesión")
     } finally {
@@ -56,6 +56,7 @@ export function LoginPage() {
           <div className="mt-4 flex flex-col gap-2 text-center text-sm text-muted-foreground">
             <Link to="/forgot-password" className="hover:text-foreground">¿Olvidaste tu contraseña?</Link>
             <Link to="/register" className="hover:text-foreground">Crear cuenta</Link>
+            <Link to="/" className="hover:text-foreground">Volver al inicio</Link>
           </div>
         </CardContent>
       </Card>

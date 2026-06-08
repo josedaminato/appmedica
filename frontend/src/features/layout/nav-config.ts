@@ -19,7 +19,7 @@ export type NavItem = {
 }
 
 export const navItems: NavItem[] = [
-  { to: "/", label: "Inicio", icon: LayoutDashboard, enabled: true },
+  { to: "/inicio", label: "Inicio", icon: LayoutDashboard, enabled: true },
   { to: "/patients", label: "Pacientes", icon: Users, enabled: true },
   { to: "/agenda", label: "Agenda", icon: Calendar, enabled: true },
   { to: "/insurances", label: "Obras sociales", icon: Shield, enabled: true },
