@@ -8,12 +8,11 @@ import { scrollToSection } from "../utils/scrollUtils"
 
 const NAV_ITEMS = [
   { id: "servicios", label: "Servicios" },
-  { id: "caso-real", label: "Caso real" },
   { id: "proceso", label: "Proceso" },
   { id: "appmedica", label: "AppMedica" },
   { id: "porque", label: "Por qué yo" },
-  { id: "faq", label: "FAQ" },
   { id: "contacto", label: "Contacto" },
+  { id: "faq", label: "FAQ" },
 ] as const
 
 export function Navbar() {

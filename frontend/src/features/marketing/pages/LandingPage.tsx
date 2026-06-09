@@ -1,5 +1,4 @@
 import { AppMedicaSection } from "../daminato/components/AppMedicaSection"
-import { CasoReal } from "../daminato/components/CasoReal"
 import { Contact } from "../daminato/components/Contact"
 import { FAQ } from "../daminato/components/FAQ"
 import { Footer } from "../daminato/components/Footer"
@@ -30,13 +29,12 @@ export function LandingPage() {
         <Hero />
         <Problema />
         <Servicios />
-        <CasoReal />
         <Process />
         <Planes />
         <AppMedicaSection />
         <Porque />
-        <FAQ />
         <Contact />
+        <FAQ />
       </main>
 
       <Footer />
