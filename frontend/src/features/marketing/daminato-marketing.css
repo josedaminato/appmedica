@@ -1,0 +1,51 @@
+/* Animaciones y utilidades de landingpageDaminato — scoped a .daminato-landing */
+.daminato-landing {
+  scroll-behavior: smooth;
+}
+
+.daminato-landing .fade-in {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.daminato-landing .fade-in.visible,
+.daminato-landing .fade-in.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes dw-hero-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dw-hero-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.daminato-landing .animate-hero-title {
+  animation: dw-hero-fade-in 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.daminato-landing .animate-hero-subtitle {
+  animation: dw-hero-fade-in 0.3s ease-out 0.06s forwards;
+  opacity: 0;
+}
+
+.daminato-landing .animate-hero-buttons {
+  animation: dw-hero-slide-up 0.3s ease-out 0.12s forwards;
+  opacity: 0;
+}

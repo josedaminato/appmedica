@@ -21,6 +21,7 @@ import {
 import { attentionLabelForAppointment } from "@/lib/attention-label"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { EmptyState } from "@/components/shared/EmptyState"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import {
   appointmentDurationMinutes,
   formatDate,
@@ -162,7 +163,7 @@ export function AgendaPage() {
 
   const dateParam = toDateParam(date)
 
-  const { data: appointments = [], isLoading } = useQuery({
+  const { data: appointments = [], isLoading, isError, refetch } = useQuery({
     queryKey: [
       "appointments",
       dateParam,
@@ -392,6 +393,8 @@ export function AgendaPage() {
 
       {isLoading ? (
         <LoadingSkeleton />
+      ) : isError ? (
+        <QueryErrorState onRetry={() => refetch()} />
       ) : appointments.length === 0 ? (
         <EmptyState
           title="No hay turnos en este período"

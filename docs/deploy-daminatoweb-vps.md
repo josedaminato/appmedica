@@ -15,8 +15,11 @@ AppMedica vive en el **dominio raíz**: landing en `/`, app en `/login`, `/regis
 ```
 Internet → Nginx host (:80 / :443)
               ├── /api/  → 127.0.0.1:8000 (FastAPI)
-              └── /      → 127.0.0.1:3000 (React build + landing)
+              └── /      → 127.0.0.1:3002 (AppMedica; frontend Docker)
                                     └── PostgreSQL (solo red Docker interna)
+
+**VPS compartido:** MarioRCM u otros proyectos van en **subdominio** (ej. `rcm.daminatoweb.com` → `:3000`).  
+**Solo** `daminatoweb.com` + `www` apuntan a AppMedica. Ver `nginx/mariorcm.example.conf`.
 ```
 
 ---
@@ -27,6 +30,10 @@ Internet → Nginx host (:80 / :443)
 |------|--------|-------|
 | A | `@` | `72.60.166.24` |
 | A o CNAME | `www` | `daminatoweb.com` o la misma IP |
+| **AAAA** | `@` / `www` | **Eliminar** si apunta a Hostinger (no al VPS) — provoca SSL roto en IPv6 |
+| A | `rcm` | `72.60.166.24` (solo si usás MarioRCM en subdominio) |
+
+En el mismo VPS, **no** compartir `server_name daminatoweb.com` con MarioRCM. AppMedica = raíz; RCM = `rcm.daminatoweb.com`.
 
 ---
 

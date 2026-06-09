@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" fill="none" role="img" aria-label="AppMedica por daminatoweb">
+  <defs>
+    <linearGradient id="am-bg" x1="8" y1="4" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2fe0bf"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="13" fill="url(#am-bg)"/>
+  <path d="M24 14v20M14 24h20" stroke="#eafaf5" stroke-width="3.2" stroke-linecap="round"/>
+  <text x="60" y="22" fill="#0f1c1a" font-family="Manrope, system-ui, sans-serif" font-size="20" font-weight="800" letter-spacing="-0.02em">AppMedica</text>
+  <text x="60" y="38" fill="#5a6b67" font-family="Manrope, system-ui, sans-serif" font-size="10" font-weight="600" letter-spacing="0.12em">POR DAMINATOWEB</text>
+</svg>

@@ -30,6 +30,7 @@ export function PatientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [error, setError] = useState("")
+  const [exportError, setExportError] = useState("")
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -76,7 +77,17 @@ export function PatientsPage() {
         description="Gestioná la información administrativa de tus pacientes."
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => downloadExport("patients")}>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setExportError("")
+                try {
+                  await downloadExport("patients")
+                } catch {
+                  setExportError("No se pudo exportar la lista de pacientes")
+                }
+              }}
+            >
               Exportar
             </Button>
             <Button variant="outline" onClick={() => { setError(""); setImportOpen(true) }}>
@@ -117,6 +128,7 @@ export function PatientsPage() {
       </div>
 
       {error && <p className="mb-4 text-sm text-destructive">{error}</p>}
+      {exportError && <p className="mb-4 text-sm text-destructive">{exportError}</p>}
 
       {isLoading ? (
         <LoadingSkeleton />
@@ -127,8 +139,8 @@ export function PatientsPage() {
           action={<Button onClick={() => setDialogOpen(true)}>Nuevo paciente</Button>}
         />
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Paciente</th>

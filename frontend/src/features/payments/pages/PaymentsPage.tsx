@@ -60,7 +60,17 @@ export function PaymentsPage() {
   )
   const [collectTarget, setCollectTarget] = useState<CollectionRow | null>(null)
   const [error, setError] = useState("")
+  const [exportError, setExportError] = useState("")
   const [success, setSuccess] = useState("")
+
+  async function handleExport(resource: "debt" | "payments") {
+    setExportError("")
+    try {
+      await downloadExport(resource)
+    } catch {
+      setExportError("No se pudo exportar. Intentá de nuevo.")
+    }
+  }
 
   useEffect(() => {
     setTab(tabFromParams(searchParams))
@@ -152,15 +162,17 @@ export function PaymentsPage() {
         description="Estado económico del consultorio: deuda, cobros y obras sociales."
         action={
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => downloadExport("debt")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport("debt")}>
               Exportar deuda
             </Button>
-            <Button variant="outline" size="sm" onClick={() => downloadExport("payments")}>
+            <Button variant="outline" size="sm" onClick={() => handleExport("payments")}>
               Exportar cobros
             </Button>
           </div>
         }
       />
+
+      {exportError && <p className="mb-4 text-sm text-destructive">{exportError}</p>}
 
       {loadingSummary ? (
         <LoadingSkeleton rows={2} />
@@ -253,8 +265,8 @@ export function PaymentsPage() {
           }
         />
       ) : (
-        <div className="rounded-xl border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
                 <th className="px-3 py-2.5 text-left font-medium">Paciente</th>

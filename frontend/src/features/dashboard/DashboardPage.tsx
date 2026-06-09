@@ -17,6 +17,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
+import { listHealthInsurances } from "@/features/insurances/api"
+import { listPatients } from "@/features/patients/api"
+import { OnboardingChecklist } from "./components/OnboardingChecklist"
 import { AppointmentStatusBadge, AttentionTypeBadge } from "@/components/shared/StatusBadge"
 import { formatMoney, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -27,7 +31,12 @@ export function DashboardPage() {
   const { user } = useAuth()
   const [showDetails, setShowDetails] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboardSummary,
     refetchInterval: 60_000,
@@ -39,9 +48,28 @@ export function DashboardPage() {
     refetchInterval: 60_000,
   })
 
+  const { data: patientsSample } = useQuery({
+    queryKey: ["patients", "onboarding"],
+    queryFn: () => listPatients({ page_size: 1, is_active: true }),
+  })
+
+  const { data: insurances = [] } = useQuery({
+    queryKey: ["insurances", "onboarding"],
+    queryFn: () => listHealthInsurances(),
+  })
+
   if (isLoading) return <LoadingSkeleton rows={4} />
 
-  const d = data!
+  if (isError || !data) {
+    return (
+      <div>
+        <PageHeader title="Inicio" description="Esto es lo que pasa hoy en tu consultorio." />
+        <QueryErrorState onRetry={() => refetch()} />
+      </div>
+    )
+  }
+
+  const d = data
   const firstName = user?.full_name?.trim().split(" ")[0]
 
   return (
@@ -50,6 +78,32 @@ export function DashboardPage() {
         title={firstName ? `Hola, ${firstName}` : "Inicio"}
         description="Esto es lo que pasa hoy en tu consultorio."
         action={<QuickActions />}
+      />
+
+      <OnboardingChecklist
+        steps={[
+          {
+            id: "insurance",
+            label: "Cargá al menos una obra social",
+            done: insurances.length > 0,
+            href: "/insurances",
+            cta: "Ir a obras sociales",
+          },
+          {
+            id: "patient",
+            label: "Agregá tu primer paciente",
+            done: (patientsSample?.meta.total ?? 0) > 0,
+            href: "/patients",
+            cta: "Ir a pacientes",
+          },
+          {
+            id: "appointment",
+            label: "Programá tu primer turno",
+            done: d.appointments_today > 0 || d.upcoming_appointments.length > 0,
+            href: "/agenda/new",
+            cta: "Crear turno",
+          },
+        ]}
       />
 
       {/* HOY — lo que necesitás resolver en el día */}

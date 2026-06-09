@@ -23,14 +23,12 @@ export function TeamPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  if (user && user.role !== "owner") {
-    return <Navigate to="/inicio" replace />
-  }
+  const isOwner = user?.role === "owner"
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: api.listUsers,
-    enabled: user?.role === "owner",
+    enabled: isOwner,
   })
 
   const create = useMutation({
@@ -78,6 +76,10 @@ export function TeamPage() {
     } else {
       await create.mutateAsync(data as CreateUserPayload)
     }
+  }
+
+  if (user && !isOwner) {
+    return <Navigate to="/inicio" replace />
   }
 
   return (

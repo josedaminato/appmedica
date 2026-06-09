@@ -128,17 +128,18 @@ class AuthService:
             email=user.email,
             subject=f"{settings.app_name} — Restablecer contraseña",
         )
+        provider = (settings.email_provider or "mock").lower()
         try:
             asyncio.run(get_email_provider(settings).send(email_payload))
         except Exception:
             logger.exception("No se pudo enviar email de reset a %s", user.email)
-            logger.info(
-                "[FALLBACK] Password reset token for %s: %s",
-                user.email,
-                raw_token,
-            )
+            if not settings.is_production:
+                logger.warning(
+                    "[DEV] Falló el envío de reset para %s. Revisá SMTP o usá EMAIL_PROVIDER=mock en desarrollo.",
+                    user.email,
+                )
 
-        if (settings.email_provider or "mock").lower() == "mock":
+        if provider == "mock" and not settings.is_production:
             logger.info(
                 "[MOCK EMAIL] Password reset for %s | token: %s | expires: %s",
                 user.email,

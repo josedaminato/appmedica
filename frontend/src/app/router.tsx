@@ -14,6 +14,8 @@ import { PatientDetailPage } from "@/features/patients/pages/PatientDetailPage"
 import { ReportsPage } from "@/features/reports/pages/ReportsPage"
 import { TeamPage } from "@/features/users/pages/TeamPage"
 import { HomePage } from "@/features/marketing/pages/HomePage"
+import { PrivacyPage } from "@/features/marketing/pages/PrivacyPage"
+import { TermsPage } from "@/features/marketing/pages/TermsPage"
 import { ProtectedRoute } from "./ProtectedRoute"
 
 export function AppRouter() {
@@ -25,6 +27,8 @@ export function AppRouter() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/privacidad" element={<PrivacyPage />} />
+        <Route path="/terminos" element={<TermsPage />} />
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppShell />}>

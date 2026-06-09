@@ -60,9 +60,16 @@ export function NewAppointmentPage() {
   const [insuranceId, setInsuranceId] = useState("")
   const [formError, setFormError] = useState("")
 
+  const [patientQ, setPatientQ] = useState("")
+
   const { data: patientsData } = useQuery({
-    queryKey: ["patients", "picker"],
-    queryFn: () => listPatients({ page_size: 100, is_active: true }),
+    queryKey: ["patients", "picker", patientQ],
+    queryFn: () =>
+      listPatients({
+        page_size: 50,
+        is_active: true,
+        q: patientQ.trim() || undefined,
+      }),
   })
   const { data: insurances = [] } = useQuery({
     queryKey: ["insurances"],
@@ -152,16 +159,27 @@ export function NewAppointmentPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Paciente</Label>
-              <Select value={patientId} onValueChange={setPatientId} required>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  {patientsData?.data.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.last_name}, {p.first_name} — {p.dni}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                placeholder="Buscar por nombre o DNI..."
+                value={patientQ}
+                onChange={(e) => setPatientQ(e.target.value)}
+              />
+              {patientsData?.data.length ? (
+                <Select value={patientId} onValueChange={setPatientId} required>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar paciente" /></SelectTrigger>
+                  <SelectContent>
+                    {patientsData.data.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.last_name}, {p.first_name} — {p.dni}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {patientQ.trim() ? "No hay pacientes con esa búsqueda." : "Buscá un paciente o cargá uno en Pacientes."}
+                </p>
+              )}
             </div>
             {professionals.length > 1 && (
               <div className="space-y-2">
