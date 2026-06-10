@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { id: "servicios", label: "Servicios" },
   { id: "proceso", label: "Proceso" },
   { id: "appmedica", label: "AppMedica" },
-  { id: "porque", label: "Por qué yo" },
   { id: "contacto", label: "Contacto" },
   { id: "faq", label: "FAQ" },
 ] as const

@@ -5,7 +5,6 @@ import { Footer } from "../daminato/components/Footer"
 import { Hero } from "../daminato/components/Hero"
 import { Navbar } from "../daminato/components/Navbar"
 import { Planes } from "../daminato/components/Planes"
-import { Porque } from "../daminato/components/Porque"
 import { Problema } from "../daminato/components/Problema"
 import { Process } from "../daminato/components/Process"
 import { Servicios } from "../daminato/components/Servicios"
@@ -32,7 +31,6 @@ export function LandingPage() {
         <Process />
         <Planes />
         <AppMedicaSection />
-        <Porque />
         <Contact />
         <FAQ />
       </main>
