@@ -12,7 +12,6 @@ export function HeroVisual() {
           loading="eager"
           decoding="async"
         />
-        <div className="hero-visual__overlay" />
         <div className="hero-visual__card hero-visual__card--top">
           <span className="hero-visual__card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
