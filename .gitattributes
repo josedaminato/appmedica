@@ -1,0 +1,2 @@
+# Scripts bash deben ir con LF (evita errores al ejecutar en Linux desde PowerShell/SSH)
+*.sh text eol=lf

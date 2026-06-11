@@ -1,26 +1,31 @@
 # Despliega AppMedica en el VPS Hostinger (daminatoweb.com)
 # Uso: .\scripts\deploy-remote.ps1
-# Requiere: SSH a root@72.60.166.24 (clave "PC José" o contraseña de hPanel → VPS)
 
+$ErrorActionPreference = "Stop"
 $VpsHost = "72.60.166.24"
-$RemoteCmd = @"
-set -e
-cd /opt/appmedica
-git pull origin main
-bash scripts/deploy.sh
-bash scripts/setup-prod-ops.sh
-sudo cp nginx/daminatoweb.com.conf /etc/nginx/sites-available/daminatoweb.com.conf
-sudo nginx -t && sudo systemctl reload nginx
-bash scripts/prod-smoke-test.sh
-"@
+$VpsUser = "root"
 
-Write-Host "Conectando a root@${VpsHost}..." -ForegroundColor Cyan
-Write-Host "Si pedis contraseña, usá la de hPanel -> VPS -> SSH (no la del hosting PHP)." -ForegroundColor Yellow
-ssh root@$VpsHost $RemoteCmd
+function Invoke-Vps([string]$BashCommand) {
+    Write-Host ">> $BashCommand" -ForegroundColor DarkGray
+    & ssh "${VpsUser}@${VpsHost}" $BashCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Comando remoto falló (código $LASTEXITCODE)."
+    }
+}
 
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`nListo. Probá: https://daminatoweb.com" -ForegroundColor Green
-} else {
-    Write-Host "`nFalló SSH o el deploy. Revisá credenciales y que exista /opt/appmedica en el VPS." -ForegroundColor Red
+Write-Host "Conectando a ${VpsUser}@${VpsHost}..." -ForegroundColor Cyan
+Write-Host "Password: hPanel -> VPS -> SSH (no la del hosting PHP)." -ForegroundColor Yellow
+
+try {
+    Invoke-Vps "cd /opt/appmedica && git pull origin main"
+    Invoke-Vps "cd /opt/appmedica && bash scripts/deploy.sh"
+    Invoke-Vps "cd /opt/appmedica && bash scripts/setup-prod-ops.sh"
+    Invoke-Vps "sudo cp /opt/appmedica/nginx/daminatoweb.com.conf /etc/nginx/sites-available/daminatoweb.com.conf"
+    Invoke-Vps "sudo nginx -t && sudo systemctl reload nginx"
+    Invoke-Vps "cd /opt/appmedica && bash scripts/prod-smoke-test.sh"
+    Write-Host "`nListo. Proba: https://daminatoweb.com" -ForegroundColor Green
+}
+catch {
+    Write-Host "`nFallo: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
