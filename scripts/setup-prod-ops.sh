@@ -38,6 +38,18 @@ if [[ -n "${SMTP_PASSWORD:-}" ]]; then
   fi
 fi
 
+# Alinear usuario/remitente con contacto@ (soporte oficial del producto)
+if grep -q '^SMTP_USER=' "${ENV_FILE}"; then
+  sed -i 's|^SMTP_USER=.*|SMTP_USER=contacto@daminatoweb.com|' "${ENV_FILE}"
+else
+  echo "SMTP_USER=contacto@daminatoweb.com" >> "${ENV_FILE}"
+fi
+if grep -q '^SMTP_FROM_EMAIL=' "${ENV_FILE}"; then
+  sed -i 's|^SMTP_FROM_EMAIL=.*|SMTP_FROM_EMAIL=contacto@daminatoweb.com|' "${ENV_FILE}"
+else
+  echo "SMTP_FROM_EMAIL=contacto@daminatoweb.com" >> "${ENV_FILE}"
+fi
+
 if ! grep -q '^EMAIL_PROVIDER=smtp' "${ENV_FILE}"; then
   echo "  Configurando EMAIL_PROVIDER=smtp..."
   if grep -q '^EMAIL_PROVIDER=' "${ENV_FILE}"; then
@@ -52,8 +64,8 @@ for var in SMTP_HOST SMTP_PORT SMTP_USER SMTP_FROM_EMAIL; do
     case "${var}" in
       SMTP_HOST) echo "SMTP_HOST=smtp.hostinger.com" >> "${ENV_FILE}" ;;
       SMTP_PORT) echo "SMTP_PORT=587" >> "${ENV_FILE}" ;;
-      SMTP_USER) echo "SMTP_USER=noreply@daminatoweb.com" >> "${ENV_FILE}" ;;
-      SMTP_FROM_EMAIL) echo "SMTP_FROM_EMAIL=noreply@daminatoweb.com" >> "${ENV_FILE}" ;;
+      SMTP_USER) echo "SMTP_USER=contacto@daminatoweb.com" >> "${ENV_FILE}" ;;
+      SMTP_FROM_EMAIL) echo "SMTP_FROM_EMAIL=contacto@daminatoweb.com" >> "${ENV_FILE}" ;;
     esac
     echo "  Agregado ${var} por defecto."
   fi
@@ -63,7 +75,7 @@ SMTP_PASS="$(grep '^SMTP_PASSWORD=' "${ENV_FILE}" | cut -d= -f2- || true)"
 if [[ -z "${SMTP_PASS}" || "${SMTP_PASS}" == *"CAMBIAR"* ]]; then
   echo ""
   echo "  ATENCIÓN: SMTP_PASSWORD no está configurado."
-  echo "  Creá el correo noreply@daminatoweb.com en Hostinger y ejecutá:"
+  echo "  Configurá SMTP_PASSWORD (correo contacto@daminatoweb.com en Hostinger) y ejecutá:"
   echo "    SMTP_PASSWORD='tu-password' bash scripts/setup-prod-ops.sh"
   echo "  O editá: nano backend/.env.prod"
   SMTP_OK=0
