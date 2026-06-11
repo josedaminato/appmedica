@@ -33,7 +33,7 @@ export function UrgentHelpSection({ className, compact = false }: UrgentHelpSect
         </h2>
       </div>
       <p className={cn("text-muted-foreground", compact ? "text-[11px] leading-snug" : "text-xs")}>
-        Problemas para entrar, turnos o cobros: escribinos directo.
+        Problemas para entrar, turnos o pagos: escribinos directo.
       </p>
       <ul className={cn("space-y-1.5", compact ? "text-xs" : "text-sm")}>
         <li>

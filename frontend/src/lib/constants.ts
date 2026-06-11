@@ -1,4 +1,7 @@
 export const APP_NAME = "AppMedica"
+/** Mensaje central de venta: agenda y organización (sin cobro online al paciente). */
+export const APP_TAGLINE =
+  "Agenda, pacientes y obras sociales organizados. Sin planillas ni WhatsApp perdido."
 export const TOKEN_KEY = "appmedica_token"
 
 /** Rutas de acceso a la app desde la landing comercial. */

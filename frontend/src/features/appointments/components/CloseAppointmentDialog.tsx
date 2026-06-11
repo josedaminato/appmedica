@@ -119,7 +119,6 @@ export function CloseAppointmentDialog({
                 <SelectContent>
                   <SelectItem value="cash">Efectivo</SelectItem>
                   <SelectItem value="transfer">Transferencia</SelectItem>
-                  <SelectItem value="mercadopago">MercadoPago</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -20,13 +20,13 @@ export function PrivacyPage() {
         <p className="text-sm text-gray-600">Última actualización: junio 2026</p>
         <p>
           AppMedica y Daminato Web tratan datos de consultorios y pacientes con fines exclusivamente administrativos
-          (agenda, cobros, obras sociales). No reemplaza historia clínica ni diagnóstico médico.
+          (agenda, pagos registrados, obras sociales). No reemplaza historia clínica ni diagnóstico médico.
         </p>
         <h2>Qué datos recopilamos</h2>
         <ul>
           <li>Datos del consultorio y usuarios (nombre, email, rol).</li>
           <li>Datos administrativos de pacientes cargados por el profesional (nombre, DNI, contacto, obra social).</li>
-          <li>Información de turnos, cobros y reclamos a obras sociales.</li>
+          <li>Información de turnos, pagos registrados y reclamos a obras sociales.</li>
         </ul>
         <h2>Cómo los usamos</h2>
         <p>Para operar el software contratado, dar soporte y mejorar el servicio. No vendemos datos a terceros.</p>

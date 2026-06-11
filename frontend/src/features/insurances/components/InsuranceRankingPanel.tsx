@@ -36,7 +36,7 @@ export function InsuranceRankingPanel() {
         </p>
         {data && (
           <p className="text-xs mt-2">
-            Mínimo {data.min_sample} cobros registrados para estadísticas fiables.
+            Mínimo {data.min_sample} pagos registrados para estadísticas fiables.
           </p>
         )}
       </div>
@@ -83,7 +83,7 @@ export function InsuranceRankingPanel() {
                       }
                     />
                     <Stat
-                      label="Cobros en ≤ 45 d"
+                      label="Pagos en ≤ 45 d"
                       value={
                         item.pct_collected_within_45_days != null
                           ? `${item.pct_collected_within_45_days}%`

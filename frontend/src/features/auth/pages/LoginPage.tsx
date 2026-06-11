@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
-import { APP_DASHBOARD_PATH, APP_NAME } from "@/lib/constants"
+import { APP_DASHBOARD_PATH, APP_NAME, APP_TAGLINE } from "@/lib/constants"
 import { ApiError } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
 
@@ -42,7 +42,7 @@ export function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
-          <CardDescription>Ingresá a tu consultorio</CardDescription>
+          <CardDescription>{APP_TAGLINE}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

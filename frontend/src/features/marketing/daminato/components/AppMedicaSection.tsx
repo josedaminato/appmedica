@@ -1,16 +1,16 @@
 import { Link } from "react-router-dom"
-import { APP_REGISTER_PATH, PRICING_ARS } from "@/lib/constants"
+import { APP_REGISTER_PATH, APP_TAGLINE, PRICING_ARS } from "@/lib/constants"
 import { scrollToSection } from "../utils/scrollUtils"
 
 const APP_FEATURES = [
   "Agenda con estados de turno (confirmado, asistió, ausente, cancelado)",
-  "Gestión de pacientes con historial",
-  "Control de obras sociales, prepagas y PAMI",
-  "Dashboard de cobros y deudas",
-  "Reclamos a obras sociales",
-  "Exportación a Excel",
-  "Multi-profesional por consultorio",
-  "Funciona desde el celular sin instalar nada",
+  "Pacientes con DNI, obra social e importación desde Excel",
+  "Seguimiento de pagos y deudas (solo registro, sin cobro online)",
+  "Reclamos y ranking de obras sociales / prepagas",
+  "Reportes mensuales y exportación para tu contador",
+  "Equipo: profesionales y administración en el mismo consultorio",
+  "Recordatorios por WhatsApp con un clic (sin costo extra)",
+  "Funciona desde el celular, sin instalar nada",
 ] as const
 
 const SPECIALTIES = ["Médicos clínicos", "Psicólogos", "Nutricionistas", "Odontólogos", "Kinesiólogos", "Traumatólogos"] as const
@@ -20,14 +20,15 @@ export function AppMedicaSection() {
     <section id="appmedica" className="section appmedica" aria-labelledby="appmedica-title">
       <div className="container">
         <header className="section-header fade-in">
-          <h2 id="appmedica-title">Menos tiempo administrando. Más tiempo atendiendo pacientes.</h2>
+          <h2 id="appmedica-title">{APP_TAGLINE}</h2>
         </header>
 
         <div className="appmedica__grid">
           <div className="appmedica__text fade-in">
             <p>
-              AppMedica centraliza agenda, pacientes, obras sociales y cobros para que puedas enfocarte en lo importante:
-              tu práctica profesional.
+              AppMedica organiza tu consultorio en un solo lugar: agenda, pacientes y obras sociales.
+              Podés anotar quién pagó y quién debe — la app no cobra al paciente por vos.
+              No es historia clínica.
             </p>
             <p className="appmedica__note font-semibold text-[var(--color-primary)]">
               {PRICING_ARS.appMedicaMonthly}/mes por consultorio · pesos argentinos

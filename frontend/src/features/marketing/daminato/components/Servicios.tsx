@@ -24,7 +24,7 @@ const SERVICIOS = [
     step: "03",
     title: "Organizamos la gestión diaria",
     description:
-      "AppMedica centraliza agenda, pacientes, obras sociales y cobros para que puedas enfocarte en lo importante: atender.",
+      "AppMedica organiza agenda, pacientes y obras sociales para que dejes las planillas y te enfoques en atender.",
     price: `${PRICING_ARS.appMedicaMonthly}/mes por consultorio`,
     cta: "Conocer AppMedica",
     action: () => scrollToSection("appmedica"),

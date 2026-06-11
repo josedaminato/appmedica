@@ -150,14 +150,36 @@ URLs finales:
 
 ---
 
-## 8. Checklist post-deploy
+## 8. Checklist post-deploy (técnico)
 
-- [ ] Registro de consultorio nuevo funciona
+- [ ] Registro de consultorio nuevo funciona (con términos aceptados)
 - [ ] Cargar obras sociales en **Mis obras sociales**
 - [ ] Paciente + turno + cierre + cobro
+- [ ] Importar pacientes desde Excel
 - [ ] Export Excel
-- [ ] Recuperar contraseña (requiere SMTP)
+- [ ] Recuperar contraseña con email real (SMTP configurado)
 - [ ] Backup DB programado (ver abajo)
+
+---
+
+## 9. Checklist antes de vender a un consultorio
+
+**En el VPS (una vez):**
+
+1. `backend/.env.prod` → `EMAIL_PROVIDER=smtp` + credenciales Hostinger (`noreply@daminatoweb.com`)
+2. Probar: forgot-password desde https://daminatoweb.com/forgot-password
+3. Cron backup: `0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh`
+
+**Por cada cliente nuevo (onboarding manual):**
+
+1. Demo 30 min: registro → obra social → paciente (o import Excel) → turno → cierre → cobro → export
+2. Pre-cargar sus 3–5 obras sociales si te pasan la lista
+3. Importar Excel de pacientes si tienen planilla
+4. Crear usuario de secretaría en **Equipo** (contraseña temporal por WhatsApp)
+5. Cobro **$25.000/mes** por transferencia/MP — acuerdo por WhatsApp (sin facturación automática en la app)
+6. Aclarar alcance: **no** es historia clínica, **no** factura AFIP, **no** liquidación OS automática
+
+**Pitch:** *Agenda, pacientes y obras sociales organizados. Sin planillas.*
 
 ---
 
@@ -170,15 +192,20 @@ bash scripts/deploy.sh
 
 ---
 
-## Backup PostgreSQL (manual)
+## Backup PostgreSQL
 
 ```bash
 cd /opt/appmedica
-docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T db \
-  pg_dump -U appmedica appmedica > backup-$(date +%F).sql
+bash scripts/backup-db.sh
 ```
 
-Programar con cron o backups de Hostinger.
+Guarda en `backups/` (comprimido, retiene 14 días). Cron recomendado:
+
+```bash
+0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh >> /var/log/appmedica-backup.log 2>&1
+```
+
+También podés usar backups de Hostinger como respaldo.
 
 ---
 

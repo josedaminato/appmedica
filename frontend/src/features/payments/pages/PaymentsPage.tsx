@@ -32,7 +32,7 @@ const TABS: { id: CollectionTab; label: string }[] = [
   { id: "pending", label: "Todo pendiente" },
   { id: "private", label: "Particulares" },
   { id: "insurance", label: "Obras sociales" },
-  { id: "recent", label: "Cobros recientes" },
+  { id: "recent", label: "Pagos registrados" },
 ]
 
 const METHOD_LABELS: Record<string, string> = {
@@ -158,15 +158,15 @@ export function PaymentsPage() {
   return (
     <div>
       <PageHeader
-        title="Cobros"
-        description="Estado económico del consultorio: deuda, cobros y obras sociales."
+        title="Pagos y deudas"
+        description="Anotá quién pagó y quién debe. Solo registro administrativo — la app no cobra al paciente."
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => handleExport("debt")}>
               Exportar deuda
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleExport("payments")}>
-              Exportar cobros
+              Exportar pagos
             </Button>
           </div>
         }
@@ -260,7 +260,7 @@ export function PaymentsPage() {
           title="Nada pendiente acá"
           description={
             tab === "recent"
-              ? "Los cobros registrados aparecerán en esta lista."
+              ? "Los pagos que registres aparecerán en esta lista."
               : "Cuando haya deuda de particulares u obras sociales, la verás acá."
           }
         />

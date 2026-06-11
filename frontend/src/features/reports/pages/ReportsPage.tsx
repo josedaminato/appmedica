@@ -100,7 +100,7 @@ export function ReportsPage() {
               ]}
             />
             <ReportCard
-              title="Cobros particulares"
+              title="Pagos particulares"
               icon={Wallet}
               lines={[
                 { label: "Total cobrado", value: formatMoney(data.private_collected_total) },

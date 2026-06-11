@@ -29,7 +29,7 @@ export function OnboardingChecklist({ steps }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Completá estos pasos para empezar a usar AppMedica en el día a día.
+          En 15 minutos tenés agenda y pacientes organizados. Si ya tenés una planilla, importalos desde Pacientes.
         </p>
         <ul className="space-y-2">
           {steps.map((step) => (

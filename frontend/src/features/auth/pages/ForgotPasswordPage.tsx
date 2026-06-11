@@ -7,6 +7,11 @@ import { Label } from "@/components/ui/label"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
 import { forgotPassword } from "@/features/auth/api"
 import { ApiError } from "@/lib/api-client"
+import {
+  SUPPORT_WHATSAPP_DISPLAY,
+  SUPPORT_WHATSAPP_PHONE,
+  SUPPORT_WHATSAPP_PREFILL,
+} from "@/lib/constants"
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -43,9 +48,21 @@ export function ForgotPasswordPage() {
         </CardHeader>
         <CardContent>
           {sent ? (
-            <p className="text-sm text-muted-foreground" role="status">
-              {message}
-            </p>
+            <div className="space-y-3 text-sm text-muted-foreground" role="status">
+              <p>{message}</p>
+              <p>
+                Si no llega el email en unos minutos, revisá spam o escribinos por WhatsApp{" "}
+                <a
+                  href={`https://wa.me/${SUPPORT_WHATSAPP_PHONE.replace(/\D/g, "")}?text=${encodeURIComponent(SUPPORT_WHATSAPP_PREFILL)}`}
+                  className="text-primary hover:underline"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {SUPPORT_WHATSAPP_DISPLAY}
+                </a>
+                .
+              </p>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">

@@ -86,7 +86,7 @@ export function TeamPage() {
     <div>
       <PageHeader
         title="Equipo"
-        description="Invitá profesionales y personal administrativo a tu consultorio."
+        description="Agregá profesionales y secretaría. Les creás usuario y contraseña; compartilas el acceso por un canal seguro."
         action={
           <Button size="sm" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-1" />

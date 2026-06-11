@@ -91,7 +91,7 @@ export function DashboardPage() {
           },
           {
             id: "patient",
-            label: "Agregá tu primer paciente",
+            label: "Cargá pacientes (manual o importá desde Excel)",
             done: (patientsSample?.meta.total ?? 0) > 0,
             href: "/patients",
             cta: "Ir a pacientes",
@@ -201,7 +201,7 @@ export function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Pacientes con más deuda</CardTitle>
             <Link to="/payments?tab=pending" className="text-sm text-primary hover:underline">
-              Ver cobros
+              Ver deudas
             </Link>
           </CardHeader>
           <CardContent>
@@ -257,7 +257,7 @@ export function DashboardPage() {
             />
             {alerts && (
               <MetricCard
-                title="Cobros parciales pendientes"
+                title="Pagos parciales pendientes"
                 value={String(alerts.partial_payments_pending.count)}
                 icon={Wallet}
                 href="/payments?tab=private"
@@ -321,7 +321,7 @@ function QuickActions() {
       <Button asChild size="sm" variant="outline">
         <Link to="/payments">
           <Wallet />
-          Cobros
+          Pagos y deudas
         </Link>
       </Button>
     </div>
