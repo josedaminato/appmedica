@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
-import { SUPPORT_EMAIL } from "@/lib/constants"
+import { APP_NAME, SUPPORT_EMAIL } from "@/lib/constants"
 
 export function TermsPage() {
   return (
@@ -16,10 +16,10 @@ export function TermsPage() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
-        <h1>Términos de uso — AppMedica</h1>
+        <h1>Términos de uso — {APP_NAME}</h1>
         <p className="text-sm text-gray-600">Última actualización: junio 2026</p>
         <p>
-          Al crear una cuenta en AppMedica aceptás estos términos. El servicio es un sistema de gestión administrativa
+          Al crear una cuenta en {APP_NAME} aceptás estos términos. El servicio es un sistema de gestión administrativa
           para consultorios de salud en Argentina.
         </p>
         <h2>Uso del servicio</h2>
@@ -30,7 +30,7 @@ export function TermsPage() {
         </ul>
         <h2>Alcance del producto</h2>
         <p>
-          AppMedica no es historia clínica electrónica ni dispositivo médico. No garantiza resultados de captación de
+          {APP_NAME} no es historia clínica electrónica ni dispositivo médico. No garantiza resultados de captación de
           pacientes ni recordatorios automáticos salvo que estén contratados y configurados expresamente.
         </p>
         <h2>Pago y suspensión</h2>

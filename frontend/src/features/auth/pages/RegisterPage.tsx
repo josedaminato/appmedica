@@ -8,7 +8,7 @@ import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
 import { ApiError } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
-import { APP_DASHBOARD_PATH, APP_TAGLINE } from "@/lib/constants"
+import { APP_DASHBOARD_PATH, APP_NAME, APP_TAGLINE } from "@/lib/constants"
 
 export function RegisterPage() {
   const { register, isAuthenticated, isLoading } = useAuth()
@@ -90,7 +90,7 @@ export function RegisterPage() {
                 <Link to="/privacidad" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
                   política de privacidad
                 </Link>
-                . Entiendo que AppMedica es gestión administrativa, no historia clínica.
+                . Entiendo que {APP_NAME} es gestión administrativa, no historia clínica.
               </span>
             </label>
             {error && <p className="text-sm text-destructive">{error}</p>}

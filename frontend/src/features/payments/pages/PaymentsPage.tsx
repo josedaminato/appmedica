@@ -220,7 +220,7 @@ export function PaymentsPage() {
       {canFilterByProfessional && (
         <div className="mb-4">
           <Select value={professionalId} onValueChange={syncProfessionalId}>
-            <SelectTrigger className="w-52">
+            <SelectTrigger className="w-full sm:w-52">
               <SelectValue placeholder="Profesional" />
             </SelectTrigger>
             <SelectContent>
@@ -265,86 +265,74 @@ export function PaymentsPage() {
           }
         />
       ) : (
-        <div className="rounded-xl border overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-medium">Paciente</th>
-                <th className="px-3 py-2.5 text-left font-medium hidden md:table-cell">Origen</th>
-                <th className="px-3 py-2.5 text-left font-medium">Fecha</th>
-                <th className="px-3 py-2.5 text-left font-medium">Estado</th>
-                <th className="px-3 py-2.5 text-right font-medium">Total</th>
-                <th className="px-3 py-2.5 text-right font-medium">Pendiente</th>
-                <th className="px-3 py-2.5 text-right font-medium">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.kind}-${row.row_id}`} className="border-b last:border-0 hover:bg-muted/20">
-                  <td className="px-3 py-2.5">
-                    <Link to={`/patients/${row.patient_id}`} className="font-medium hover:text-primary">
-                      {row.patient_name}
-                    </Link>
-                    {row.professional_name && (
-                      <p className="text-xs text-muted-foreground">{row.professional_name}</p>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 hidden md:table-cell text-muted-foreground text-xs">
-                    {row.kind === "insurance"
-                      ? row.health_insurance_name ?? "Obra social"
-                      : row.kind === "payment"
-                        ? METHOD_LABELS[row.payment_method ?? ""] ?? "Particular"
-                        : "Turno particular"}
-                  </td>
-                  <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                    {formatDate(row.service_date)}
-                    {row.days_pending > 0 && row.balance_pending !== "0" && (
-                      <span className="block text-xs text-amber-600 dark:text-amber-400">
-                        {row.days_pending} d
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <StatusBadge row={row} />
-                  </td>
-                  <td className="px-3 py-2.5 text-right tabular-nums">{formatMoney(row.total_amount)}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums font-medium">
-                    {Number(row.balance_pending) > 0 ? formatMoney(row.balance_pending) : "—"}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      {row.can_collect && row.appointment_id && (
-                        <Button
-                          size="sm"
-                          onClick={() => setCollectTarget(row)}
-                        >
-                          Cobrar
-                        </Button>
-                      )}
-                      {row.can_mark_insurance && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={markCollected.isPending}
-                          onClick={() => markCollected.mutate(row.row_id)}
-                        >
-                          Cobrado OS
-                        </Button>
-                      )}
-                      {row.appointment_id && (
-                        <Button size="sm" variant="ghost" asChild>
-                          <Link to="/agenda" title="Ver agenda">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Link>
-                        </Button>
-                      )}
-                    </div>
-                  </td>
+        <>
+          <div className="space-y-3 md:hidden">
+            {rows.map((row) => (
+              <CollectionCard
+                key={`${row.kind}-${row.row_id}`}
+                row={row}
+                onCollect={() => setCollectTarget(row)}
+                onMarkInsurance={() => markCollected.mutate(row.row_id)}
+                markPending={markCollected.isPending}
+              />
+            ))}
+          </div>
+          <div className="hidden md:block rounded-xl border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="px-3 py-2.5 text-left font-medium">Paciente</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Origen</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Fecha</th>
+                  <th className="px-3 py-2.5 text-left font-medium">Estado</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Total</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Pendiente</th>
+                  <th className="px-3 py-2.5 text-right font-medium">Acción</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={`${row.kind}-${row.row_id}`} className="border-b last:border-0 hover:bg-muted/20">
+                    <td className="px-3 py-2.5">
+                      <Link to={`/patients/${row.patient_id}`} className="font-medium hover:text-primary">
+                        {row.patient_name}
+                      </Link>
+                      {row.professional_name && (
+                        <p className="text-xs text-muted-foreground">{row.professional_name}</p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground text-xs">
+                      {originLabel(row)}
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                      {formatDate(row.service_date)}
+                      {row.days_pending > 0 && row.balance_pending !== "0" && (
+                        <span className="block text-xs text-amber-600 dark:text-amber-400">
+                          {row.days_pending} d
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <StatusBadge row={row} />
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums">{formatMoney(row.total_amount)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-medium">
+                      {Number(row.balance_pending) > 0 ? formatMoney(row.balance_pending) : "—"}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <CollectionRowActions
+                        row={row}
+                        onCollect={() => setCollectTarget(row)}
+                        onMarkInsurance={() => markCollected.mutate(row.row_id)}
+                        markPending={markCollected.isPending}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <AddPaymentDialog
@@ -396,6 +384,109 @@ function SummaryCard({
     </Card>
   )
   return href ? <Link to={href}>{inner}</Link> : inner
+}
+
+function originLabel(row: CollectionRow) {
+  if (row.kind === "insurance") return row.health_insurance_name ?? "Obra social"
+  if (row.kind === "payment") return METHOD_LABELS[row.payment_method ?? ""] ?? "Particular"
+  return "Turno particular"
+}
+
+function CollectionRowActions({
+  row,
+  onCollect,
+  onMarkInsurance,
+  markPending,
+  stacked,
+}: {
+  row: CollectionRow
+  onCollect: () => void
+  onMarkInsurance: () => void
+  markPending: boolean
+  stacked?: boolean
+}) {
+  return (
+    <div className={cn("flex gap-2", stacked ? "flex-col" : "justify-end gap-1")}>
+      {row.can_collect && row.appointment_id && (
+        <Button size="sm" className={stacked ? "w-full" : undefined} onClick={onCollect}>
+          Cobrar
+        </Button>
+      )}
+      {row.can_mark_insurance && (
+        <Button
+          size="sm"
+          variant="secondary"
+          className={stacked ? "w-full" : undefined}
+          disabled={markPending}
+          onClick={onMarkInsurance}
+        >
+          Cobrado OS
+        </Button>
+      )}
+      {row.appointment_id && (
+        <Button size="sm" variant={stacked ? "outline" : "ghost"} className={stacked ? "w-full" : undefined} asChild>
+          <Link to="/agenda" title="Ver agenda">
+            {stacked ? "Ver en agenda" : <ExternalLink className="h-3.5 w-3.5" />}
+          </Link>
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function CollectionCard({
+  row,
+  onCollect,
+  onMarkInsurance,
+  markPending,
+}: {
+  row: CollectionRow
+  onCollect: () => void
+  onMarkInsurance: () => void
+  markPending: boolean
+}) {
+  const pending = Number(row.balance_pending) > 0
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <Link to={`/patients/${row.patient_id}`} className="font-medium hover:text-primary">
+              {row.patient_name}
+            </Link>
+            {row.professional_name && (
+              <p className="text-xs text-muted-foreground mt-0.5">{row.professional_name}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">{originLabel(row)}</p>
+          </div>
+          <StatusBadge row={row} />
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">{formatDate(row.service_date)}</span>
+          {row.days_pending > 0 && pending && (
+            <span className="text-xs text-amber-600 dark:text-amber-400">{row.days_pending} días</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground">Total</p>
+            <p className="font-medium tabular-nums">{formatMoney(row.total_amount)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Pendiente</p>
+            <p className="font-semibold tabular-nums">{pending ? formatMoney(row.balance_pending) : "—"}</p>
+          </div>
+        </div>
+        <CollectionRowActions
+          row={row}
+          onCollect={onCollect}
+          onMarkInsurance={onMarkInsurance}
+          markPending={markPending}
+          stacked
+        />
+      </CardContent>
+    </Card>
+  )
 }
 
 function StatusBadge({ row }: { row: CollectionRow }) {

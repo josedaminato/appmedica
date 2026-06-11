@@ -1,4 +1,4 @@
-import { PRICING_AGENCY_COPY, PRICING_ARS } from "@/lib/constants"
+import { APP_NAME, PRICING_AGENCY_COPY, PRICING_ARS } from "@/lib/constants"
 import { scrollToSection } from "../utils/scrollUtils"
 
 const SERVICIOS = [
@@ -24,9 +24,9 @@ const SERVICIOS = [
     step: "03",
     title: "Organizamos la gestión diaria",
     description:
-      "AppMedica organiza agenda, pacientes y obras sociales para que dejes las planillas y te enfoques en atender.",
+      `${APP_NAME} organiza agenda, pacientes y obras sociales para que dejes las planillas y te enfoques en atender.`,
     price: `${PRICING_ARS.appMedicaMonthly}/mes por consultorio`,
-    cta: "Conocer AppMedica",
+    cta: `Conocer ${APP_NAME}`,
     action: () => scrollToSection("appmedica"),
   },
 ] as const
@@ -39,7 +39,7 @@ export function Servicios() {
           <h2 id="servicios-title">Cómo ayudamos a tu consultorio a crecer</h2>
           <p>
             Tres soluciones que trabajan juntas para ayudarte a atraer pacientes, convertir consultas en turnos y
-            organizar la gestión diaria de tu consultorio. AppMedica en pesos argentinos; captación y web a presupuesto.
+            organizar la gestión diaria de tu consultorio. {APP_NAME} en pesos argentinos; captación y web a presupuesto.
           </p>
         </header>
 

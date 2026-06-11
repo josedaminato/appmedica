@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
-import { SUPPORT_EMAIL } from "@/lib/constants"
+import { APP_NAME, SUPPORT_EMAIL } from "@/lib/constants"
 
 export function PrivacyPage() {
   return (
@@ -19,7 +19,7 @@ export function PrivacyPage() {
         <h1>Política de privacidad</h1>
         <p className="text-sm text-gray-600">Última actualización: junio 2026</p>
         <p>
-          AppMedica y Daminato Web tratan datos de consultorios y pacientes con fines exclusivamente administrativos
+          {APP_NAME} y Daminato Web tratan datos de consultorios y pacientes con fines exclusivamente administrativos
           (agenda, pagos registrados, obras sociales). No reemplaza historia clínica ni diagnóstico médico.
         </p>
         <h2>Qué datos recopilamos</h2>

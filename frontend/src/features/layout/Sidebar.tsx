@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
+import { APP_NAME } from "@/lib/constants"
 import { useAuth } from "@/features/auth/AuthContext"
 import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { visibleNavItems } from "./nav-config"
@@ -13,7 +14,7 @@ export function Sidebar() {
     <aside className="hidden w-60 shrink-0 border-r bg-card md:flex md:flex-col">
       <div className="flex h-14 items-center gap-2 border-b px-4">
         <BrandLogo variant="mark" className="h-8 w-8 shrink-0" />
-        <span className="font-semibold tracking-tight text-primary">AppMedica</span>
+        <span className="font-semibold tracking-tight text-primary">{APP_NAME}</span>
       </div>
       <nav className="flex-1 space-y-1 p-3">
         {items.map(({ to, label, icon: Icon, enabled }) => (

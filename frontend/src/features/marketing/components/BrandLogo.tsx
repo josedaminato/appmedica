@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils"
-import { BRAND_LOGOS } from "@/lib/constants"
+import { APP_NAME, BRAND_LOGOS } from "@/lib/constants"
 
 type Props = {
   variant?: "full" | "mark"
@@ -13,7 +13,7 @@ export function BrandLogo({ variant = "full", className }: Props) {
   return (
     <img
       src={src}
-      alt="AppMedica"
+      alt={APP_NAME}
       className={cn(variant === "mark" ? "h-9 w-9" : "h-10 w-auto max-w-[200px]", className)}
       decoding="async"
     />

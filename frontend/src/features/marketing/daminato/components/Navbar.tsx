@@ -2,14 +2,14 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "@/features/auth/AuthContext"
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
-import { APP_DASHBOARD_PATH, APP_LOGIN_PATH } from "@/lib/constants"
+import { APP_DASHBOARD_PATH, APP_LOGIN_PATH, APP_NAME } from "@/lib/constants"
 import { generateWhatsAppUrl, WHATSAPP_MESSAGES } from "../utils/constants"
 import { scrollToSection } from "../utils/scrollUtils"
 
 const NAV_ITEMS = [
   { id: "servicios", label: "Servicios" },
   { id: "proceso", label: "Proceso" },
-  { id: "appmedica", label: "AppMedica" },
+  { id: "appmedica", label: APP_NAME },
   { id: "contacto", label: "Contacto" },
   { id: "faq", label: "FAQ" },
 ] as const

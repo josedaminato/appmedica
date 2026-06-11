@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Calendar, ChevronLeft, ChevronRight, MessageCircle, Plus } from "lucide-react"
+import {
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  MoreHorizontal,
+  Plus,
+  SlidersHorizontal,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -30,6 +44,7 @@ import {
   toDateParam,
 } from "@/lib/format"
 import { buildAppointmentReminderMessage, buildWhatsAppUrl } from "@/lib/whatsapp"
+import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api-client"
 import type {
   Appointment,
@@ -110,6 +125,7 @@ export function AgendaPage() {
   )
   const [closureFilter, setClosureFilter] = useState<string>(() => readClosureParam(searchParams))
   const [search, setSearch] = useState(() => searchParams.get("q") ?? "")
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   function syncUrl(updates: {
     date?: string
@@ -310,85 +326,103 @@ export function AgendaPage() {
       {actionSuccess && <FeedbackBanner message={actionSuccess} variant="success" />}
       {actionError && <FeedbackBanner message={actionError} variant="error" />}
 
-      <div className="mb-4 flex flex-wrap gap-2 items-center">
-        <Button variant="outline" size="icon" onClick={() => shiftDate(view === "week" ? -7 : -1)}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Input
-          type="date"
-          className="w-40"
-          value={dateParam}
-          onChange={(e) => handleDateChange(e.target.value)}
-        />
-        <Button variant="outline" size="icon" onClick={() => shiftDate(view === "week" ? 7 : 1)}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <Select value={view} onValueChange={(v) => setView(v as "day" | "week")}>
-          <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Día</SelectItem>
-            <SelectItem value="week">Semana</SelectItem>
-          </SelectContent>
-        </Select>
-        {canFilterByProfessional && (
-          <Select
-            value={professionalId}
-            onValueChange={(v) => {
-              setProfessionalId(v)
-              syncUrl({ professional_id: v })
-            }}
-          >
-            <SelectTrigger className="w-44"><SelectValue placeholder="Profesional" /></SelectTrigger>
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => shiftDate(view === "week" ? -7 : -1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Input
+            type="date"
+            className="min-w-0 flex-1 sm:w-40 sm:flex-none"
+            value={dateParam}
+            onChange={(e) => handleDateChange(e.target.value)}
+          />
+          <Button variant="outline" size="icon" onClick={() => shiftDate(view === "week" ? 7 : 1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Select value={view} onValueChange={(v) => setView(v as "day" | "week")}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {team.map((m) => (
-                <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
-              ))}
+              <SelectItem value="day">Día</SelectItem>
+              <SelectItem value="week">Semana</SelectItem>
             </SelectContent>
           </Select>
-        )}
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => {
-            setStatusFilter(v)
-            syncUrl({ status: v })
-          }}
+          <Button
+            type="button"
+            variant="outline"
+            className="sm:hidden"
+            onClick={() => setFiltersOpen((o) => !o)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros
+          </Button>
+        </div>
+        <div
+          className={cn(
+            "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center",
+            filtersOpen ? "flex" : "hidden sm:flex",
+          )}
         >
-          <SelectTrigger className="w-36"><SelectValue placeholder="Estado" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="pending">Pendiente</SelectItem>
-            <SelectItem value="confirmed">Confirmado</SelectItem>
-            <SelectItem value="attended">Asistió</SelectItem>
-            <SelectItem value="no_show">Ausente</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={closureFilter}
-          onValueChange={(v) => {
-            setClosureFilter(v)
-            syncUrl({ closure: v })
-          }}
-        >
-          <SelectTrigger className="w-40"><SelectValue placeholder="Cierre" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Cierre: todos</SelectItem>
-            <SelectItem value="none">Sin cerrar</SelectItem>
-            <SelectItem value="paid">Cobrado</SelectItem>
-            <SelectItem value="pending">Pendiente cobro</SelectItem>
-            <SelectItem value="partial">Cobro parcial</SelectItem>
-            <SelectItem value="insurance_pending">OS pendiente</SelectItem>
-          </SelectContent>
-        </Select>
-        <Input
-          placeholder="Buscar paciente..."
-          className="max-w-xs"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            syncUrl({ q: e.target.value })
-          }}
-        />
+          {canFilterByProfessional && (
+            <Select
+              value={professionalId}
+              onValueChange={(v) => {
+                setProfessionalId(v)
+                syncUrl({ professional_id: v })
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Profesional" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {team.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.full_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v)
+              syncUrl({ status: v })
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="pending">Pendiente</SelectItem>
+              <SelectItem value="confirmed">Confirmado</SelectItem>
+              <SelectItem value="attended">Asistió</SelectItem>
+              <SelectItem value="no_show">Ausente</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={closureFilter}
+            onValueChange={(v) => {
+              setClosureFilter(v)
+              syncUrl({ closure: v })
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Cierre" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Cierre: todos</SelectItem>
+              <SelectItem value="none">Sin cerrar</SelectItem>
+              <SelectItem value="paid">Cobrado</SelectItem>
+              <SelectItem value="pending">Pendiente cobro</SelectItem>
+              <SelectItem value="partial">Cobro parcial</SelectItem>
+              <SelectItem value="insurance_pending">OS pendiente</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Buscar paciente..."
+            className="w-full sm:max-w-xs"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              syncUrl({ q: e.target.value })
+            }}
+          />
+        </div>
       </div>
 
       {isLoading ? (
@@ -470,6 +504,100 @@ export function AgendaPage() {
   )
 }
 
+type RowAction = {
+  id: string
+  label: string
+  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive"
+  href?: string
+  external?: boolean
+  primary?: boolean
+}
+
+function buildAppointmentActions(a: Appointment, needsClose: boolean): RowAction[] {
+  const actions: RowAction[] = []
+
+  if (a.patient?.phone && (a.status === "pending" || a.status === "confirmed")) {
+    actions.push({
+      id: "whatsapp",
+      label: "WhatsApp",
+      variant: "outline",
+      href: buildWhatsAppUrl(
+        a.patient.phone,
+        buildAppointmentReminderMessage(a.patient.first_name, a.start_at),
+      ),
+      external: true,
+    })
+  }
+  if (a.status === "pending") {
+    actions.push({ id: "confirm", label: "Confirmar", variant: "secondary", primary: true })
+  }
+  if (a.status === "pending" || a.status === "confirmed") {
+    actions.push({
+      id: "attend",
+      label: "Asistió",
+      primary: a.status === "confirmed",
+    })
+    actions.push({ id: "no_show", label: "Ausente", variant: "outline" })
+    actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost" })
+    actions.push({ id: "cancel", label: "Cancelar", variant: "ghost" })
+  }
+  if (a.status === "no_show") {
+    actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost", primary: true })
+  }
+  if (needsClose) {
+    actions.push({ id: "close", label: "Cerrar", primary: true })
+  }
+  if (a.closure_status === "pending" || a.closure_status === "partial") {
+    actions.push({
+      id: "payment",
+      label: "Cobrar",
+      variant: "outline",
+      primary: !needsClose && a.status !== "pending" && a.status !== "confirmed",
+    })
+  }
+
+  const withPrimary = actions.find((act) => act.primary)
+  if (!withPrimary && actions.length > 0) actions[0].primary = true
+
+  return actions
+}
+
+function ActionButton({
+  action,
+  disabled,
+  onAction,
+}: {
+  action: RowAction
+  disabled: boolean
+  onAction: (id: string) => void
+}) {
+  if (action.href) {
+    return (
+      <Button size="sm" variant={action.variant ?? "outline"} asChild>
+        <a
+          href={action.href}
+          target={action.external ? "_blank" : undefined}
+          rel={action.external ? "noopener noreferrer" : undefined}
+        >
+          {action.id === "whatsapp" && <MessageCircle className="h-3.5 w-3.5 mr-1" />}
+          {action.label}
+        </a>
+      </Button>
+    )
+  }
+  return (
+    <Button
+      size="sm"
+      variant={action.variant ?? "default"}
+      className={action.id === "cancel" ? "text-destructive hover:text-destructive" : undefined}
+      disabled={disabled}
+      onClick={() => onAction(action.id)}
+    >
+      {action.label}
+    </Button>
+  )
+}
+
 function AppointmentRow({
   appointment: a,
   onAction,
@@ -492,8 +620,12 @@ function AppointmentRow({
         ? "border-red-500/20"
         : ""
 
+  const actions = buildAppointmentActions(a, needsClose)
+  const primary = actions.find((act) => act.primary)
+  const secondary = actions.filter((act) => act !== primary)
+
   return (
-    <div className={`flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-3 bg-card transition-colors ${rowClass}`}>
+    <div className={`flex flex-col gap-3 rounded-lg border p-3 bg-card transition-colors sm:flex-row sm:items-center ${rowClass}`}>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-sm tabular-nums">
@@ -505,6 +637,8 @@ function AppointmentRow({
           <Link to={`/patients/${a.patient_id}`} className="font-medium hover:text-primary truncate">
             {patientName}
           </Link>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <AttentionTypeBadge
             attentionType={a.attention_type}
             healthInsuranceName={a.health_insurance?.name}
@@ -512,73 +646,60 @@ function AppointmentRow({
           <AppointmentStatusBadge status={a.status} />
           <ClosureStatusBadge status={a.closure_status} showUnclosed={needsClose} />
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-xs text-muted-foreground mt-1">
           {a.modality === "online" ? "Online" : "Presencial"}
           {a.expected_amount ? ` · ${formatMoney(a.expected_amount)}` : ""}
           <span className="sr-only"> — {attentionLabelForAppointment(a)}</span>
         </p>
       </div>
-      <div className="flex flex-wrap gap-1 shrink-0">
-        {a.patient?.phone &&
-          (a.status === "pending" || a.status === "confirmed") && (
-            <Button size="sm" variant="outline" asChild>
-              <a
-                href={buildWhatsAppUrl(
-                  a.patient.phone,
-                  buildAppointmentReminderMessage(a.patient.first_name, a.start_at),
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Abrir WhatsApp con mensaje de recordatorio (sin costo de API)"
-              >
-                <MessageCircle className="h-3.5 w-3.5 mr-1" />
-                WhatsApp
-              </a>
-            </Button>
-          )}
-        {a.status === "pending" && (
-          <Button size="sm" variant="secondary" disabled={actionPending} onClick={() => onAction("confirm")}>
-            Confirmar
-          </Button>
-        )}
-        {(a.status === "pending" || a.status === "confirmed") && (
-          <>
-            <Button size="sm" disabled={actionPending} onClick={() => onAction("attend")}>
-              Asistió
-            </Button>
-            <Button size="sm" variant="outline" disabled={actionPending} onClick={() => onAction("no_show")}>
-              Ausente
-            </Button>
-            <Button size="sm" variant="ghost" disabled={actionPending} onClick={() => onAction("reschedule")}>
-              Reprogramar
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              disabled={actionPending}
-              onClick={() => onAction("cancel")}
-            >
-              Cancelar
-            </Button>
-          </>
-        )}
-        {a.status === "no_show" && (
-          <Button size="sm" variant="ghost" disabled={actionPending} onClick={() => onAction("reschedule")}>
-            Reprogramar
-          </Button>
-        )}
-        {needsClose && (
-          <Button size="sm" onClick={() => onAction("close")}>
-            Cerrar
-          </Button>
-        )}
-        {(a.closure_status === "pending" || a.closure_status === "partial") && (
-          <Button size="sm" variant="outline" onClick={() => onAction("payment")}>
-            Cobrar
-          </Button>
-        )}
-      </div>
+
+      {actions.length > 0 && (
+        <>
+          <div className="hidden shrink-0 flex-wrap gap-1 sm:flex">
+            {actions.map((action) => (
+              <ActionButton key={action.id} action={action} disabled={actionPending} onAction={onAction} />
+            ))}
+          </div>
+          <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            {primary && (
+              <ActionButton action={primary} disabled={actionPending} onAction={onAction} />
+            )}
+            {secondary.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" disabled={actionPending} aria-label="Más acciones">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {secondary.map((action) =>
+                    action.href ? (
+                      <DropdownMenuItem key={action.id} asChild>
+                        <a
+                          href={action.href}
+                          target={action.external ? "_blank" : undefined}
+                          rel={action.external ? "noopener noreferrer" : undefined}
+                        >
+                          {action.label}
+                        </a>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        key={action.id}
+                        disabled={actionPending}
+                        className={action.id === "cancel" ? "text-destructive focus:text-destructive" : undefined}
+                        onClick={() => onAction(action.id)}
+                      >
+                        {action.label}
+                      </DropdownMenuItem>
+                    ),
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

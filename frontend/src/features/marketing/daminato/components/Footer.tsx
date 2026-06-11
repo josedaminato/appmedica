@@ -1,4 +1,5 @@
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
+import { APP_NAME } from "@/lib/constants"
 
 export function Footer() {
   return (
@@ -17,7 +18,7 @@ export function Footer() {
               <li>Web para consultorios</li>
               <li>Google Ads</li>
               <li>Medición con datos</li>
-              <li>AppMedica — software de gestión</li>
+              <li>{APP_NAME} — software de gestión</li>
             </ul>
           </div>
           <div>

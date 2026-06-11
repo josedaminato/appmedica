@@ -1,3 +1,5 @@
+import { APP_NAME } from "@/lib/constants"
+
 /** Ilustración del hero: consultorio + captación digital (sin foto stock externa). */
 export function HeroVisual() {
   return (
@@ -38,7 +40,7 @@ export function HeroVisual() {
       <div className="hero-visual__chips">
         <span className="hero-visual__chip">Google Ads</span>
         <span className="hero-visual__chip">Web profesional</span>
-        <span className="hero-visual__chip">AppMedica</span>
+        <span className="hero-visual__chip">{APP_NAME}</span>
       </div>
     </div>
   )

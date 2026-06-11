@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { APP_REGISTER_PATH, APP_TAGLINE, PRICING_ARS } from "@/lib/constants"
+import { APP_NAME, APP_REGISTER_PATH, APP_TAGLINE, PRICING_ARS } from "@/lib/constants"
 import { scrollToSection } from "../utils/scrollUtils"
 
 const APP_FEATURES = [
@@ -26,7 +26,7 @@ export function AppMedicaSection() {
         <div className="appmedica__grid">
           <div className="appmedica__text fade-in">
             <p>
-              AppMedica organiza tu consultorio en un solo lugar: agenda, pacientes y obras sociales.
+              {APP_NAME} organiza tu consultorio en un solo lugar: agenda, pacientes y obras sociales.
               Podés anotar quién pagó y quién debe — la app no cobra al paciente por vos.
               No es historia clínica.
             </p>
@@ -38,13 +38,13 @@ export function AppMedicaSection() {
                 Solicitar una demostración
               </button>
               <Link to={APP_REGISTER_PATH} className="btn btn--outline btn--lg text-center">
-                Conocer AppMedica
+                Conocer {APP_NAME}
               </Link>
             </div>
           </div>
 
           <div className="fade-in">
-            <ul className="feature-list" aria-label="Funcionalidades de AppMedica">
+            <ul className="feature-list" aria-label={`Funcionalidades de ${APP_NAME}`}>
               {APP_FEATURES.map((item) => (
                 <li key={item}>
                   <svg className="feature-list__check" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

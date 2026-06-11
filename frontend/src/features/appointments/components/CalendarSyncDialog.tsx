@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ApiError } from "@/lib/api-client"
+import { APP_NAME } from "@/lib/constants"
 import { getCalendarFeed, regenerateCalendarFeed } from "../api-calendar"
 
 interface CalendarSyncDialogProps {
@@ -55,7 +56,7 @@ export function CalendarSyncDialog({ open, onOpenChange }: CalendarSyncDialogPro
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
             Suscribite una vez en Google Calendar, Outlook o Apple. Los turnos se actualizan solos
-            (cada pocas horas). Solo lectura: los cambios se hacen en AppMedica.
+            (cada pocas horas). Solo lectura: los cambios se hacen en {APP_NAME}.
           </p>
         </DialogHeader>
 

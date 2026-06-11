@@ -166,9 +166,18 @@ URLs finales:
 
 **En el VPS (una vez):**
 
-1. `backend/.env.prod` → `EMAIL_PROVIDER=smtp` + credenciales Hostinger (`noreply@daminatoweb.com`)
-2. Probar: forgot-password desde https://daminatoweb.com/forgot-password
-3. Cron backup: `0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh`
+```bash
+cd /opt/appmedica
+# Si ya tenés la contraseña del correo noreply@daminatoweb.com:
+SMTP_PASSWORD='tu-password' bash scripts/setup-prod-ops.sh
+# O sin contraseña (solo backup + cron; te avisa si falta SMTP):
+bash scripts/setup-prod-ops.sh
+```
+
+Eso configura `EMAIL_PROVIDER=smtp`, corre un backup manual, programa el cron y reinicia el backend.
+
+1. Probar: https://daminatoweb.com/forgot-password con un email real
+2. Smoke test: `bash scripts/prod-smoke-test.sh`
 
 **Por cada cliente nuevo (onboarding manual):**
 

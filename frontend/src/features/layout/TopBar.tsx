@@ -1,6 +1,5 @@
-import { Moon, Sun, LogOut } from "lucide-react"
+import { Menu, Moon, Sun, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { MobileNav } from "./MobileNav"
 import { APP_NAME } from "@/lib/constants"
 import {
   DropdownMenu,
@@ -11,14 +10,26 @@ import {
 import { useAuth } from "@/features/auth/AuthContext"
 import { useTheme } from "@/hooks/use-theme"
 
-export function TopBar() {
+type TopBarProps = {
+  onMenuClick?: () => void
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur px-4 md:px-6 supports-[backdrop-filter]:bg-background/80">
       <div className="flex items-center gap-2 md:hidden">
-        <MobileNav />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Abrir menú"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         <span className="text-sm font-semibold text-foreground">{APP_NAME}</span>
       </div>
       <div className="hidden md:block text-sm text-muted-foreground">

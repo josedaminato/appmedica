@@ -1,4 +1,4 @@
-export const APP_NAME = "AppMedica"
+export const APP_NAME = "AppMédica"
 /** Mensaje central de venta: agenda y organización (sin cobro online al paciente). */
 export const APP_TAGLINE =
   "Agenda, pacientes y obras sociales organizados. Sin planillas ni WhatsApp perdido."
@@ -26,7 +26,7 @@ export const SUPPORT_WHATSAPP_DISPLAY = "+54 9 11 2765-4198"
 export const SUPPORT_WHATSAPP_PHONE = "+5491127654198"
 export const SUPPORT_EMAIL = "contacto@daminatoweb.com"
 export const SUPPORT_WHATSAPP_PREFILL =
-  "Hola, necesito ayuda urgente con AppMedica."
+  "Hola, necesito ayuda urgente con AppMédica."
 
 /**
  * Precio público de AppMedica en pesos argentinos (ARS).

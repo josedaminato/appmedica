@@ -1,5 +1,6 @@
 import { LifeBuoy, Mail, MessageCircle } from "lucide-react"
 import {
+  APP_NAME,
   SUPPORT_EMAIL,
   SUPPORT_WHATSAPP_DISPLAY,
   SUPPORT_WHATSAPP_PHONE,
@@ -9,7 +10,7 @@ import { buildWhatsAppUrl } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 
 const whatsappUrl = buildWhatsAppUrl(SUPPORT_WHATSAPP_PHONE, SUPPORT_WHATSAPP_PREFILL)
-const mailtoUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Ayuda AppMedica")}`
+const mailtoUrl = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Ayuda ${APP_NAME}`)}`
 
 type UrgentHelpSectionProps = {
   className?: string

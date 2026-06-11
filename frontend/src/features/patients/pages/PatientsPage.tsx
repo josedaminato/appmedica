@@ -139,36 +139,60 @@ export function PatientsPage() {
           action={<Button onClick={() => setDialogOpen(true)}>Nuevo paciente</Button>}
         />
       ) : (
-        <div className="rounded-xl border overflow-x-auto">
-          <table className="w-full min-w-[520px] text-sm">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Paciente</th>
-                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">DNI</th>
-                <th className="px-4 py-3 text-left font-medium hidden md:table-cell">Teléfono</th>
-                <th className="px-4 py-3 text-left font-medium">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.data.map((p) => (
-                <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-3">
-                    <Link to={`/patients/${p.id}`} className="font-medium hover:text-primary">
-                      {p.last_name}, {p.first_name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">{p.dni}</td>
-                  <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{p.phone ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={p.is_active ? "success" : "secondary"}>
-                      {p.is_active ? "Activo" : "Inactivo"}
-                    </Badge>
-                  </td>
+        <>
+          <div className="space-y-2 md:hidden">
+            {data.data.map((p) => (
+              <Link
+                key={p.id}
+                to={`/patients/${p.id}`}
+                className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/30 touch-manipulation"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {p.last_name}, {p.first_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    DNI {p.dni}
+                    {p.phone ? ` · ${p.phone}` : ""}
+                  </p>
+                </div>
+                <Badge variant={p.is_active ? "success" : "secondary"}>
+                  {p.is_active ? "Activo" : "Inactivo"}
+                </Badge>
+              </Link>
+            ))}
+          </div>
+          <div className="hidden md:block rounded-xl border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Paciente</th>
+                  <th className="px-4 py-3 text-left font-medium">DNI</th>
+                  <th className="px-4 py-3 text-left font-medium">Teléfono</th>
+                  <th className="px-4 py-3 text-left font-medium">Estado</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {data.data.map((p) => (
+                  <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-4 py-3">
+                      <Link to={`/patients/${p.id}`} className="font-medium hover:text-primary">
+                        {p.last_name}, {p.first_name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.dni}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.phone ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={p.is_active ? "success" : "secondary"}>
+                        {p.is_active ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {data && data.meta.total_pages > 1 && (
