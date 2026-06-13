@@ -27,19 +27,32 @@ export function RegisterPage() {
     return <Navigate to={APP_DASHBOARD_PATH} replace />
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!acceptedTerms) {
       setError("Tenés que aceptar los términos y la política de privacidad.")
       return
     }
+    const fd = new FormData(e.currentTarget)
+    const payload = {
+      organization_name: String(fd.get("organization_name") ?? form.organization_name).trim(),
+      full_name: String(fd.get("full_name") ?? form.full_name).trim(),
+      email: String(fd.get("email") ?? form.email).trim(),
+      password: String(fd.get("password") ?? form.password),
+    }
     setError("")
     setLoading(true)
     try {
-      await register(form)
+      await register(payload)
       navigate("/inicio")
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al registrarse")
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else if (err instanceof Error && err.message) {
+        setError(`No se pudo conectar con el servidor. Revisá tu internet e intentá de nuevo. (${err.message})`)
+      } else {
+        setError("Error al registrarse. Si el email ya lo usaste, probá ingresar.")
+      }
     } finally {
       setLoading(false)
     }
@@ -65,11 +78,21 @@ export function RegisterPage() {
                 </Label>
                 <Input
                   id={field}
+                  name={field}
                   type={field === "password" ? "password" : field === "email" ? "email" : "text"}
+                  autoComplete={
+                    field === "email"
+                      ? "email"
+                      : field === "password"
+                        ? "new-password"
+                        : field === "full_name"
+                          ? "name"
+                          : "organization"
+                  }
                   value={form[field]}
                   onChange={(e) => setForm({ ...form, [field]: e.target.value })}
                   required
-                  minLength={field === "password" ? 8 : undefined}
+                  minLength={field === "password" ? 8 : field === "organization_name" || field === "full_name" ? 2 : undefined}
                 />
               </div>
             ))}

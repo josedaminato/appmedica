@@ -22,15 +22,25 @@ export function LoginPage() {
     return <Navigate to={APP_DASHBOARD_PATH} replace />
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    const form = e.currentTarget
+    const fd = new FormData(form)
+    const emailValue = String(fd.get("email") ?? email).trim()
+    const passwordValue = String(fd.get("password") ?? password)
     setError("")
     setLoading(true)
     try {
-      await login(email, password)
+      await login(emailValue, passwordValue)
       navigate(APP_DASHBOARD_PATH)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al iniciar sesión")
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else if (err instanceof Error && err.message) {
+        setError(`No se pudo conectar. Revisá tu internet e intentá de nuevo.`)
+      } else {
+        setError("Error al iniciar sesión")
+      }
     } finally {
       setLoading(false)
     }
@@ -48,11 +58,11 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>

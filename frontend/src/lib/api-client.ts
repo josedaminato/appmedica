@@ -30,11 +30,24 @@ function messageForStatus(status: number, fallback: string): string {
   return fallback
 }
 
+function validationHint(details: unknown): string | null {
+  if (!Array.isArray(details) || details.length === 0) return null
+  const first = details[0] as { loc?: unknown[]; msg?: string }
+  const field = Array.isArray(first.loc) ? String(first.loc.at(-1) ?? "") : ""
+  const msg = first.msg ?? ""
+  if (field && msg) return `${field}: ${msg}`
+  return msg || null
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   try {
     const body = await response.json()
     const err = body?.error
-    const message = err?.message ?? messageForStatus(response.status, "Error en la solicitud")
+    let message = err?.message ?? messageForStatus(response.status, "Error en la solicitud")
+    const hint = validationHint(err?.details)
+    if (hint && err?.code === "VALIDATION_ERROR") {
+      message = `${message} (${hint})`
+    }
     return new ApiError(response.status, err?.code ?? "ERROR", message)
   } catch {
     return new ApiError(
