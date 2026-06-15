@@ -93,6 +93,11 @@ class Settings(BaseSettings):
             )
         if "*" in self.cors_origins_list:
             problems.append("CORS_ORIGINS no debe ser '*' en producción.")
+        if self.reminder_background_loop:
+            problems.append(
+                "REMINDER_BACKGROUND_LOOP debe ser false en producción; "
+                "usá cron con scripts/process_reminders.py y scripts/send_daily_agenda.py."
+            )
 
         if problems:
             raise ValueError(

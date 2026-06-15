@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { TOKEN_KEY } from "@/lib/constants"
 import type { User } from "@/types/api"
 import * as authApi from "./api"
@@ -17,6 +18,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -47,16 +49,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
+    queryClient.clear()
     const res = await authApi.login({ email, password })
     setToken(res.access_token)
     setUser(res.user)
-  }, [setToken])
+  }, [queryClient, setToken])
 
   const register = useCallback(async (data: authApi.RegisterPayload) => {
+    queryClient.clear()
     const res = await authApi.register(data)
     setToken(res.access_token)
     setUser(res.user)
-  }, [setToken])
+  }, [queryClient, setToken])
 
   const logout = useCallback(async () => {
     try {
@@ -64,8 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       localStorage.removeItem(TOKEN_KEY)
       setUser(null)
+      queryClient.clear()
     }
-  }, [])
+  }, [queryClient])
 
   const value = useMemo(
     () => ({

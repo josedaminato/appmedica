@@ -40,8 +40,13 @@ def test_production_rejects_wildcard_cors():
         _settings(cors_origins="*")
 
 
+def test_production_rejects_background_reminder_loop():
+    with pytest.raises(ValueError, match="REMINDER_BACKGROUND_LOOP"):
+        _settings(reminder_background_loop=True)
+
+
 def test_production_accepts_strong_config():
-    settings = _settings()
+    settings = _settings(reminder_background_loop=False)
     assert settings.is_production is True
     assert settings.jwt_secret == STRONG_SECRET
 

@@ -53,6 +53,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       APP_ENV: production
       UVICORN_RELOAD: "0"
+      REMINDER_BACKGROUND_LOOP: "false"
     depends_on:
       db:
         condition: service_healthy

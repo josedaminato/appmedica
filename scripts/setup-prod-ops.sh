@@ -11,7 +11,9 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/appmedica}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE="backend/.env.prod"
-CRON_LINE='0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh >> /var/log/appmedica-backup.log 2>&1'
+CRON_BACKUP='0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh >> /var/log/appmedica-backup.log 2>&1'
+CRON_REMINDERS='*/5 * * * * cd /opt/appmedica && docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T backend python scripts/process_reminders.py >> /var/log/appmedica-reminders.log 2>&1'
+CRON_DIGEST='0 0 * * * cd /opt/appmedica && docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T backend python scripts/send_daily_agenda.py >> /var/log/appmedica-digest.log 2>&1'
 
 cd "${APP_DIR}"
 
@@ -26,7 +28,7 @@ echo "=========================================="
 
 # --- 1. SMTP ---
 echo ""
-echo "[1/4] Verificando SMTP..."
+echo "[1/5] Verificando SMTP..."
 
 if [[ -n "${SMTP_PASSWORD:-}" ]]; then
   if grep -q '^SMTP_PASSWORD=' "${ENV_FILE}"; then
@@ -84,8 +86,28 @@ else
   echo "  SMTP_PASSWORD: configurado."
 fi
 
+NEEDS_BACKEND_RESTART=0
 if [[ "${SMTP_OK}" -eq 1 ]]; then
-  echo "  Reiniciando backend para aplicar SMTP..."
+  NEEDS_BACKEND_RESTART=1
+fi
+
+# --- 1b. Recordatorios vía cron (no loop en uvicorn) ---
+echo ""
+echo "[1b/5] Verificando REMINDER_BACKGROUND_LOOP..."
+
+if grep -q '^REMINDER_BACKGROUND_LOOP=' "${ENV_FILE}"; then
+  if ! grep -q '^REMINDER_BACKGROUND_LOOP=false' "${ENV_FILE}"; then
+    NEEDS_BACKEND_RESTART=1
+  fi
+  sed -i 's|^REMINDER_BACKGROUND_LOOP=.*|REMINDER_BACKGROUND_LOOP=false|' "${ENV_FILE}"
+else
+  echo "REMINDER_BACKGROUND_LOOP=false" >> "${ENV_FILE}"
+  NEEDS_BACKEND_RESTART=1
+fi
+echo "  REMINDER_BACKGROUND_LOOP=false (cron procesa recordatorios)."
+
+if [[ "${NEEDS_BACKEND_RESTART}" -eq 1 ]]; then
+  echo "  Reiniciando backend para aplicar cambios de entorno..."
   docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --force-recreate backend
   sleep 3
   echo "  Backend reiniciado."
@@ -93,22 +115,38 @@ fi
 
 # --- 2. Backup manual ---
 echo ""
-echo "[2/4] Backup manual de PostgreSQL..."
+echo "[2/5] Backup manual de PostgreSQL..."
 bash scripts/backup-db.sh
 
 # --- 3. Cron diario ---
 echo ""
-echo "[3/4] Programando cron de backup (3:00 AM)..."
+echo "[3/5] Programando cron de backup (3:00 AM)..."
 if crontab -l 2>/dev/null | grep -qF 'scripts/backup-db.sh'; then
   echo "  Cron de backup ya existe."
 else
-  (crontab -l 2>/dev/null || true; echo "${CRON_LINE}") | crontab -
-  echo "  Cron agregado: ${CRON_LINE}"
+  (crontab -l 2>/dev/null || true; echo "${CRON_BACKUP}") | crontab -
+  echo "  Cron agregado: ${CRON_BACKUP}"
+fi
+
+# --- 3b. Cron recordatorios y resumen diario ---
+echo ""
+echo "[3b/5] Programando cron de recordatorios y resumen diario..."
+if crontab -l 2>/dev/null | grep -qF 'process_reminders.py'; then
+  echo "  Cron de recordatorios ya existe."
+else
+  (crontab -l 2>/dev/null || true; echo "${CRON_REMINDERS}") | crontab -
+  echo "  Cron agregado: ${CRON_REMINDERS}"
+fi
+if crontab -l 2>/dev/null | grep -qF 'send_daily_agenda.py'; then
+  echo "  Cron de resumen diario ya existe."
+else
+  (crontab -l 2>/dev/null || true; echo "${CRON_DIGEST}") | crontab -
+  echo "  Cron agregado: ${CRON_DIGEST}"
 fi
 
 # --- 4. Health ---
 echo ""
-echo "[4/4] Health check..."
+echo "[4/5] Health check..."
 curl -sf http://127.0.0.1:8000/api/v1/health | head -c 200
 echo ""
 
