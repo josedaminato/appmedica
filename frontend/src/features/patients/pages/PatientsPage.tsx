@@ -15,11 +15,12 @@ import {
 import { PageHeader } from "@/components/shared/PageHeader"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { PatientFormDialog } from "../components/PatientFormDialog"
 import { PatientImportDialog } from "../components/PatientImportDialog"
 import { downloadExport } from "@/lib/export-download"
 import * as patientsApi from "../api"
-import { ApiError } from "@/lib/api-client"
+import { ApiError, getErrorMessage } from "@/lib/api-client"
 
 export function PatientsPage() {
   const queryClient = useQueryClient()
@@ -44,7 +45,7 @@ export function PatientsPage() {
   const isActive =
     statusFilter === "all" ? undefined : statusFilter === "active"
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["patients", page, search, statusFilter],
     queryFn: () =>
       patientsApi.listPatients({
@@ -83,8 +84,8 @@ export function PatientsPage() {
                 setExportError("")
                 try {
                   await downloadExport("patients")
-                } catch {
-                  setExportError("No se pudo exportar la lista de pacientes")
+                } catch (err) {
+                  setExportError(getErrorMessage(err, "No se pudo exportar la lista de pacientes"))
                 }
               }}
             >
@@ -132,6 +133,8 @@ export function PatientsPage() {
 
       {isLoading ? (
         <LoadingSkeleton />
+      ) : isError ? (
+        <QueryErrorState error={queryError} onRetry={() => refetch()} />
       ) : !data?.data.length ? (
         <EmptyState
           title="Sin pacientes"

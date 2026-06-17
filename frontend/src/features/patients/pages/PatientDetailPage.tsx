@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { AppointmentStatusBadge, ClosureStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDate, formatMoney, formatTime } from "@/lib/format"
 import { ApiError } from "@/lib/api-client"
@@ -21,7 +22,7 @@ export function PatientDetailPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [error, setError] = useState("")
 
-  const { data: patient, isLoading } = useQuery({
+  const { data: patient, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => patientsApi.getPatient(id!),
     enabled: !!id,
@@ -55,6 +56,15 @@ export function PatientDetailPage() {
   })
 
   if (isLoading) return <LoadingSkeleton rows={4} />
+  if (isError) {
+    return (
+      <QueryErrorState
+        title={queryError instanceof ApiError && queryError.status === 404 ? "Paciente no encontrado" : undefined}
+        error={queryError}
+        onRetry={() => refetch()}
+      />
+    )
+  }
   if (!patient) return <p className="text-muted-foreground">Paciente no encontrado</p>
 
   return (

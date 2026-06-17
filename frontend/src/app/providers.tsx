@@ -1,14 +1,6 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "@/features/auth/AuthContext"
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
-})
+import { queryClient } from "@/lib/query-client"
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (

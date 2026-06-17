@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException
+from app.core.middleware import SecurityHeadersMiddleware
 from app.core.rate_limit import limiter
 from app.db.session import SessionLocal
 from app.services.daily_agenda_digest_service import DailyAgendaDigestService
@@ -68,7 +69,7 @@ async def lifespan(app: FastAPI):
     if settings.reminders_enabled and settings.reminder_background_loop:
         tasks.append(asyncio.create_task(_reminder_processor_loop()))
         logger.info("Procesador de recordatorios iniciado (cada %ss)", settings.reminder_processor_interval_seconds)
-    if settings.daily_agenda_digest_enabled:
+    if settings.daily_agenda_digest_enabled and settings.reminder_background_loop:
         tasks.append(asyncio.create_task(_daily_agenda_digest_loop()))
         logger.info(
             "Resumen diario de agenda activo (revisa cada %ss, envío ~%02d:%02d hora del consultorio)",
@@ -100,9 +101,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -139,13 +141,28 @@ async def http_exception_handler(_: Request, exc: StarletteHTTPException) -> JSO
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    details = exc.errors() if not _is_production else None
+    payload: dict[str, object] = {
+        "code": "VALIDATION_ERROR",
+        "message": "Datos inválidos",
+    }
+    if details is not None:
+        payload["details"] = details
     return JSONResponse(
         status_code=422,
+        content={"error": payload},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Error no controlado en %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
         content={
             "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Datos inválidos",
-                "details": exc.errors(),
+                "code": "INTERNAL_ERROR",
+                "message": "Error interno del servidor. Intentá de nuevo en unos minutos.",
             }
         },
     )
@@ -153,7 +170,10 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 @app.get("/")
 def root() -> dict[str, str]:
-    return {"app": settings.app_name, "docs": "/docs"}
+    payload: dict[str, str] = {"app": settings.app_name}
+    if not _is_production:
+        payload["docs"] = "/docs"
+    return payload
 
 
 app.include_router(api_router, prefix="/api/v1")

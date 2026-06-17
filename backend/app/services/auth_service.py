@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.exceptions import bad_request, conflict, unauthorized
+from app.core.exceptions import bad_request, conflict, forbidden, unauthorized
 from app.integrations.reminders.base import ReminderPayload
 from app.integrations.reminders.factory import get_email_provider
 from app.core.security import create_access_token, hash_password, verify_password
@@ -51,6 +51,10 @@ class AuthService:
         self.reset_tokens = PasswordResetRepository(db)
 
     def register(self, data: RegisterRequest) -> AuthResponse:
+        settings = get_settings()
+        if not settings.registration_enabled:
+            raise forbidden("El registro de nuevos consultorios no está habilitado. Contactanos para activar tu cuenta.")
+
         email = data.email.lower()
         if self.users.get_by_email(email):
             raise conflict("El email ya está registrado")

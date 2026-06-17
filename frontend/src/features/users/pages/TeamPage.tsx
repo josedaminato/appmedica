@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { ApiError } from "@/lib/api-client"
@@ -25,7 +26,7 @@ export function TeamPage() {
 
   const isOwner = user?.role === "owner"
 
-  const { data: members = [], isLoading } = useQuery({
+  const { data: members = [], isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["users"],
     queryFn: api.listUsers,
     enabled: isOwner,
@@ -100,6 +101,8 @@ export function TeamPage() {
 
       {isLoading ? (
         <LoadingSkeleton />
+      ) : isError ? (
+        <QueryErrorState error={queryError} onRetry={() => refetch()} />
       ) : members.length === 0 ? (
         <EmptyState
           title="Sin miembros"

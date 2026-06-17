@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
+import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { formatMoney } from "@/lib/format"
 import { getDashboardSummary } from "@/features/dashboard/api"
 import { cn } from "@/lib/utils"
@@ -71,7 +73,7 @@ export function InsurancesPage() {
     setDialogOpen(true)
   }
 
-  const { data: insurances = [], isLoading } = useQuery({
+  const { data: insurances = [], isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["insurances"],
     queryFn: () => api.listHealthInsurances(),
   })
@@ -189,7 +191,9 @@ export function InsurancesPage() {
       {tab === "catalog" && (
         <>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Cargando...</p>
+            <LoadingSkeleton rows={3} />
+          ) : isError ? (
+            <QueryErrorState error={queryError} onRetry={() => refetch()} />
           ) : insurances.length === 0 ? (
             <EmptyState
               title="Sin obras sociales cargadas"

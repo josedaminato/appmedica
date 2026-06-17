@@ -8,6 +8,7 @@ APP_DIR="/opt/appmedica"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE="backend/.env.prod"
 GIT_BRANCH="${GIT_BRANCH:-main}"
+NO_CACHE="${NO_CACHE:-0}"
 
 echo "=========================================="
 echo " AppMedica — deploy"
@@ -30,8 +31,13 @@ else
 fi
 
 echo ""
-echo "[2/5] Build de imágenes (sin caché)..."
-docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" build --no-cache
+if [[ "${NO_CACHE}" == "1" ]]; then
+  echo "[2/5] Build de imágenes (sin caché)..."
+  docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" build --no-cache
+else
+  echo "[2/5] Build de imágenes..."
+  docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" build
+fi
 
 echo ""
 echo "[3/5] Levantando contenedores..."

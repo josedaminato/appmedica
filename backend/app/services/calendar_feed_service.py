@@ -103,12 +103,7 @@ def _appointment_to_vevent(
         f"Profesional: {prof_name}",
     ]
     if patient:
-        if patient.dni:
-            description_parts.append(f"DNI: {patient.dni}")
-        if patient.phone:
-            description_parts.append(f"Tel: {patient.phone}")
-    if appt.notes:
-        description_parts.append(f"Notas: {appt.notes}")
+        description_parts.append(f"Paciente: {patient.last_name}, {patient.first_name}")
     local_day = appt.start_at.astimezone(tz).date().isoformat()
     description_parts.append(f"Ver en AppMedica: {app_url.rstrip('/')}/agenda?date={local_day}")
 

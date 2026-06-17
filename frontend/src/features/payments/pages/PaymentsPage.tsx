@@ -16,11 +16,12 @@ import { useRoleScope } from "@/hooks/use-role-scope"
 import { listTeam } from "@/features/users/api"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { EmptyState } from "@/components/shared/EmptyState"
 import { formatDate, formatMoney } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { ApiError } from "@/lib/api-client"
+import { ApiError, getErrorMessage } from "@/lib/api-client"
 import { AddPaymentDialog } from "@/features/appointments/components/AddPaymentDialog"
 import * as apptApi from "@/features/appointments/api"
 import * as insApi from "@/features/insurances/api"
@@ -67,8 +68,8 @@ export function PaymentsPage() {
     setExportError("")
     try {
       await downloadExport(resource)
-    } catch {
-      setExportError("No se pudo exportar. Intentá de nuevo.")
+    } catch (err) {
+      setExportError(getErrorMessage(err, "No se pudo exportar. Intentá de nuevo."))
     }
   }
 
@@ -118,13 +119,25 @@ export function PaymentsPage() {
     )
   }
 
-  const { data: summary, isLoading: loadingSummary } = useQuery({
+  const {
+    data: summary,
+    isLoading: loadingSummary,
+    isError: summaryError,
+    error: summaryQueryError,
+    refetch: refetchSummary,
+  } = useQuery({
     queryKey: ["payments-summary", effectiveProfessionalId],
     queryFn: () => api.getCollectionsSummary(effectiveProfessionalId),
     refetchInterval: 60_000,
   })
 
-  const { data: rows = [], isLoading: loadingRows } = useQuery({
+  const {
+    data: rows = [],
+    isLoading: loadingRows,
+    isError: rowsError,
+    error: rowsQueryError,
+    refetch: refetchRows,
+  } = useQuery({
     queryKey: ["payments-items", tab, effectiveProfessionalId],
     queryFn: () => api.listCollectionItems(tab, effectiveProfessionalId),
   })
@@ -176,6 +189,8 @@ export function PaymentsPage() {
 
       {loadingSummary ? (
         <LoadingSkeleton rows={2} />
+      ) : summaryError ? (
+        <QueryErrorState error={summaryQueryError} onRetry={() => refetchSummary()} />
       ) : summary && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-6">
           <SummaryCard
@@ -255,6 +270,8 @@ export function PaymentsPage() {
 
       {loadingRows ? (
         <LoadingSkeleton />
+      ) : rowsError ? (
+        <QueryErrorState error={rowsQueryError} onRetry={() => refetchRows()} />
       ) : rows.length === 0 ? (
         <EmptyState
           title="Nada pendiente acá"

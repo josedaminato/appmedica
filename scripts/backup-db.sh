@@ -20,13 +20,21 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+set -a
+# shellcheck disable=SC1090
+source "${ENV_FILE}"
+set +a
+
+POSTGRES_USER="${POSTGRES_USER:-appmedica}"
+POSTGRES_DB="${POSTGRES_DB:-appmedica}"
+
 mkdir -p "${BACKUP_DIR}"
 
 STAMP="$(date +%F_%H%M%S)"
 OUT="${BACKUP_DIR}/appmedica-${STAMP}.sql"
 
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T db \
-  pg_dump -U appmedica appmedica > "${OUT}"
+  pg_dump -U "${POSTGRES_USER}" "${POSTGRES_DB}" > "${OUT}"
 
 gzip -f "${OUT}"
 echo "Backup: ${OUT}.gz ($(du -h "${OUT}.gz" | cut -f1))"

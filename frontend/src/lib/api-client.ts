@@ -1,6 +1,9 @@
 import { TOKEN_KEY } from "@/lib/constants"
+import { queryClient } from "@/lib/query-client"
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1"
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api/v1"
+
+const AUTH_PUBLIC_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"]
 
 export class ApiError extends Error {
   code: string
@@ -17,6 +20,10 @@ type RequestOptions = RequestInit & {
   skipAuth?: boolean
 }
 
+function isAuthPublicPath(pathname: string): boolean {
+  return AUTH_PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+}
+
 function messageForStatus(status: number, fallback: string): string {
   if (status === 401) {
     return "Tu sesión expiró. Volvé a iniciar sesión e intentá de nuevo."
@@ -24,8 +31,14 @@ function messageForStatus(status: number, fallback: string): string {
   if (status === 403) {
     return "No tenés permiso para esta acción."
   }
+  if (status === 404) {
+    return "No encontramos el recurso solicitado."
+  }
   if (status === 413) {
     return "El archivo es demasiado grande para el servidor."
+  }
+  if (status === 429) {
+    return "Demasiados intentos. Esperá un momento e intentá de nuevo."
   }
   return fallback
 }
@@ -53,35 +66,34 @@ async function parseError(response: Response): Promise<ApiError> {
     return new ApiError(
       response.status,
       "ERROR",
-      messageForStatus(response.status, response.statusText),
+      messageForStatus(response.status, response.statusText || "Error en la solicitud"),
     )
   }
 }
 
-export async function apiRequest<T>(
-  path: string,
-  options: RequestOptions = {},
-): Promise<T> {
-  const headers = new Headers(options.headers)
-  headers.set("Content-Type", "application/json")
-
-  if (!options.skipAuth) {
+function authHeaders(skipAuth?: boolean): Headers {
+  const headers = new Headers()
+  if (!skipAuth) {
     const token = localStorage.getItem(TOKEN_KEY)
     if (token) headers.set("Authorization", `Bearer ${token}`)
   }
+  return headers
+}
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers,
-  })
+function handleUnauthorized(skipAuth?: boolean): void {
+  if (skipAuth || typeof window === "undefined") return
+  localStorage.removeItem(TOKEN_KEY)
+  queryClient.clear()
+  if (!isAuthPublicPath(window.location.pathname)) {
+    window.location.href = "/login"
+  }
+}
 
+async function handleResponse<T>(response: Response, skipAuth?: boolean): Promise<T> {
   if (!response.ok) {
     const err = await parseError(response)
-    if (err.status === 401 && !options.skipAuth) {
-      localStorage.removeItem(TOKEN_KEY)
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login"
-      }
+    if (err.status === 401) {
+      handleUnauthorized(skipAuth)
     }
     throw err
   }
@@ -93,30 +105,45 @@ export async function apiRequest<T>(
   return response.json() as Promise<T>
 }
 
-export async function apiUpload<T>(
+export function getErrorMessage(error: unknown, fallback = "Ocurrió un error inesperado"): string {
+  if (error instanceof ApiError) return error.message
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
+export async function apiRequest<T>(
   path: string,
-  formData: FormData,
+  options: RequestOptions = {},
 ): Promise<T> {
-  const headers = new Headers()
-  const token = localStorage.getItem(TOKEN_KEY)
-  if (token) headers.set("Authorization", `Bearer ${token}`)
+  const headers = authHeaders(options.skipAuth)
+  headers.set("Content-Type", "application/json")
 
   const response = await fetch(`${API_URL}${path}`, {
-    method: "POST",
+    ...options,
     headers,
-    body: formData,
+  })
+
+  return handleResponse<T>(response, options.skipAuth)
+}
+
+export async function apiDownload(path: string, filename: string): Promise<void> {
+  const response = await fetch(`${API_URL}${path}`, {
+    headers: authHeaders(),
   })
 
   if (!response.ok) {
     const err = await parseError(response)
     if (err.status === 401) {
-      localStorage.removeItem(TOKEN_KEY)
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login"
-      }
+      handleUnauthorized()
     }
     throw err
   }
 
-  return response.json() as Promise<T>
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }

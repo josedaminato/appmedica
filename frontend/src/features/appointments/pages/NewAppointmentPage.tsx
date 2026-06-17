@@ -113,8 +113,14 @@ export function NewAppointmentPage() {
   })
 
   const submitDisabled = useMemo(
-    () => !patientId || !schedule.valid || !schedule.start || !schedule.end || create.isPending,
-    [patientId, schedule, create.isPending],
+    () =>
+      !patientId ||
+      !schedule.valid ||
+      !schedule.start ||
+      !schedule.end ||
+      create.isPending ||
+      (attentionType === "health_insurance" && !insuranceId),
+    [patientId, schedule, create.isPending, attentionType, insuranceId],
   )
 
   async function handleSubmit(e: React.FormEvent) {

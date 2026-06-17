@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
-import { ApiError } from "@/lib/api-client"
+import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { ApiError, getErrorMessage } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
 import { APP_DASHBOARD_PATH, APP_NAME, APP_TAGLINE } from "@/lib/constants"
 
@@ -23,7 +24,15 @@ export function RegisterPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  if (!isLoading && isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+        <LoadingSkeleton rows={4} />
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
     return <Navigate to={APP_DASHBOARD_PATH} replace />
   }
 
@@ -49,7 +58,7 @@ export function RegisterPage() {
       if (err instanceof ApiError) {
         setError(err.message)
       } else if (err instanceof Error && err.message) {
-        setError(`No se pudo conectar con el servidor. Revisá tu internet e intentá de nuevo. (${err.message})`)
+        setError(getErrorMessage(err, "No se pudo conectar con el servidor. Revisá tu internet e intentá de nuevo."))
       } else {
         setError("Error al registrarse. Si el email ya lo usaste, probá ingresar.")
       }

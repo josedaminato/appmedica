@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # Registro público de nuevos consultorios (desactivar en prod si vendés manualmente)
+    registration_enabled: bool = True
+
     # Rate limiting (anti fuerza bruta en endpoints de autenticacion)
     rate_limit_enabled: bool = True
     rate_limit_login: str = "10/minute"

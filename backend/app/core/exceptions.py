@@ -18,5 +18,9 @@ def unauthorized(message: str = "No autorizado") -> AppException:
     return AppException(status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", message)
 
 
+def forbidden(message: str = "Acceso denegado") -> AppException:
+    return AppException(status.HTTP_403_FORBIDDEN, "FORBIDDEN", message)
+
+
 def bad_request(message: str) -> AppException:
     return AppException(status.HTTP_400_BAD_REQUEST, "BAD_REQUEST", message)

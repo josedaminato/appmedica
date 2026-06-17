@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/select"
 import { ClaimStatusBadge } from "./ClaimStatusBadge"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { formatDate, formatMoney } from "@/lib/format"
 import { downloadExport } from "@/lib/export-download"
-import { ApiError } from "@/lib/api-client"
+import { ApiError, getErrorMessage } from "@/lib/api-client"
 import type { InsuranceClaimStatus } from "@/types/api"
 import * as api from "../api"
 
@@ -31,6 +32,7 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
   const [insuranceFilter, setInsuranceFilter] = useState<string>("all")
   const [success, setSuccess] = useState("")
   const [error, setError] = useState("")
+  const [exportError, setExportError] = useState("")
 
   const openOnly = statusFilter === "open"
   const status =
@@ -38,7 +40,7 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
       ? (statusFilter as InsuranceClaimStatus)
       : undefined
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["insurance-claims", page, statusFilter, insuranceFilter],
     queryFn: () =>
       api.listInsuranceClaims({
@@ -109,13 +111,28 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
           </SelectContent>
         </Select>
         </div>
-        <Button variant="outline" size="sm" onClick={() => downloadExport("claims")}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            setExportError("")
+            try {
+              await downloadExport("claims")
+            } catch (err) {
+              setExportError(getErrorMessage(err, "No se pudo exportar los reclamos"))
+            }
+          }}
+        >
           Exportar Excel
         </Button>
       </div>
 
+      {exportError && <FeedbackBanner variant="error" message={exportError} />}
+
       {isLoading ? (
         <LoadingSkeleton />
+      ) : isError ? (
+        <QueryErrorState error={queryError} onRetry={() => refetch()} />
       ) : !data?.data.length ? (
         <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
           No hay reclamos con estos filtros.

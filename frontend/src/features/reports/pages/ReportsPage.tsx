@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
-import { EmptyState } from "@/components/shared/EmptyState"
+import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
+import { getErrorMessage } from "@/lib/api-client"
 import { formatMoney } from "@/lib/format"
 import * as api from "../api"
 
@@ -26,7 +27,7 @@ export function ReportsPage() {
   const [exportError, setExportError] = useState("")
   const { year, month } = parseMonthValue(monthValue)
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["monthly-report", year, month],
     queryFn: () => api.getMonthlyReport(year, month),
     enabled: Boolean(year && month),
@@ -36,8 +37,8 @@ export function ReportsPage() {
     setExportError("")
     try {
       await api.downloadMonthlyReport(year, month, format)
-    } catch {
-      setExportError("No se pudo exportar el reporte")
+    } catch (err) {
+      setExportError(getErrorMessage(err, "No se pudo exportar el reporte"))
     }
   }
 
@@ -80,10 +81,7 @@ export function ReportsPage() {
       {isLoading ? (
         <LoadingSkeleton rows={3} />
       ) : isError ? (
-        <EmptyState
-          title="No se pudo cargar el reporte"
-          description="Revisá tu conexión e intentá de nuevo en unos segundos."
-        />
+        <QueryErrorState error={queryError} onRetry={() => refetch()} />
       ) : data ? (
         <>
           <p className="text-sm text-muted-foreground mb-4">{data.period_label}</p>

@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { UrgentHelpSection } from "@/components/shared/UrgentHelpSection"
+import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { BrandLogo } from "@/features/marketing/components/BrandLogo"
 import { APP_DASHBOARD_PATH, APP_NAME, APP_TAGLINE } from "@/lib/constants"
-import { ApiError } from "@/lib/api-client"
+import { ApiError, getErrorMessage } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
 
 export function LoginPage() {
@@ -18,7 +19,15 @@ export function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  if (!isLoading && isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+        <LoadingSkeleton rows={3} />
+      </div>
+    )
+  }
+
+  if (isAuthenticated) {
     return <Navigate to={APP_DASHBOARD_PATH} replace />
   }
 
@@ -37,7 +46,7 @@ export function LoginPage() {
       if (err instanceof ApiError) {
         setError(err.message)
       } else if (err instanceof Error && err.message) {
-        setError(`No se pudo conectar. Revisá tu internet e intentá de nuevo.`)
+        setError(getErrorMessage(err, "No se pudo conectar. Revisá tu internet e intentá de nuevo."))
       } else {
         setError("Error al iniciar sesión")
       }

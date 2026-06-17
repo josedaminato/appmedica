@@ -46,6 +46,8 @@ def test_build_ics_calendar_contains_vevent():
     assert "BEGIN:VEVENT" in body
     assert "Juan" in body
     assert "Turno" in body
+    assert "30123456" not in body
+    assert "2615551234" not in body
     assert f"appointment-{appt.id}@appmedica" in body
 
 
