@@ -20,6 +20,9 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
+# Quitar CRLF de Windows (evita errores en scripts bash)
+sed -i 's/\r$//' "${ENV_FILE}"
+
 echo ""
 echo "[1/8] git pull..."
 git pull origin main
