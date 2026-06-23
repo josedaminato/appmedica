@@ -20,13 +20,8 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "${ENV_FILE}"
-set +a
-
-POSTGRES_USER="${POSTGRES_USER:-appmedica}"
-POSTGRES_DB="${POSTGRES_DB:-appmedica}"
+POSTGRES_USER="$(grep '^POSTGRES_USER=' "${ENV_FILE}" | cut -d= -f2- | tr -d '\r')"
+POSTGRES_DB="$(grep '^POSTGRES_DB=' "${ENV_FILE}" | cut -d= -f2- | tr -d '\r')"
 
 mkdir -p "${BACKUP_DIR}"
 
