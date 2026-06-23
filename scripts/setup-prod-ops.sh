@@ -47,8 +47,8 @@ ensure_env() {
 }
 
 NEEDS_BACKEND_RESTART=0
-ensure_env "CORS_ORIGINS" "https://app.daminatoweb.com"
-ensure_env "PUBLIC_APP_URL" "https://app.daminatoweb.com"
+ensure_env "CORS_ORIGINS" "https://daminatoweb.com,https://www.daminatoweb.com"
+ensure_env "PUBLIC_APP_URL" "https://daminatoweb.com"
 ensure_env "VITE_API_URL" "/api/v1"
 
 # --- 1. SMTP ---

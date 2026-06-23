@@ -54,5 +54,5 @@ docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps
 echo ""
 echo "=========================================="
 echo " Deploy finalizado."
-echo " Verificá: curl -s https://app.daminatoweb.com/api/v1/health"
+echo " Verificá: curl -s https://daminatoweb.com/api/v1/health"
 echo "=========================================="

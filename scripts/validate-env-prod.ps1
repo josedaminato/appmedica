@@ -46,8 +46,8 @@ Require-Var "APP_ENV"
 Warn-If "POSTGRES_PASSWORD" { param($v) $v -match 'CAMBIAR' }
 Warn-If "JWT_SECRET" { param($v) $v.Length -lt 32 -or $v -match 'CAMBIAR' }
 Warn-If "SMTP_PASSWORD" { param($v) $v -match 'CAMBIAR' -or [string]::IsNullOrWhiteSpace($v) }
-Warn-If "CORS_ORIGINS" { param($v) $v -notmatch 'app\.daminatoweb\.com' }
-Warn-If "PUBLIC_APP_URL" { param($v) $v -ne 'https://app.daminatoweb.com' }
+Warn-If "CORS_ORIGINS" { param($v) $v -notmatch 'daminatoweb\.com' }
+Warn-If "PUBLIC_APP_URL" { param($v) $v -ne 'https://daminatoweb.com' }
 Warn-If "VITE_API_URL" { param($v) $v -ne '/api/v1' }
 Warn-If "APP_ENV" { param($v) $v -ne 'production' }
 Warn-If "SEED_DEMO" { param($v) $v -eq '1' }

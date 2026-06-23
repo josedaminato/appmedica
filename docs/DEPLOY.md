@@ -1,6 +1,6 @@
 # Deploy AppMedica en VPS (Ubuntu 24.04 LTS)
 
-Objetivo: **https://app.daminatoweb.com**
+Objetivo: **https://daminatoweb.com** — landing comercial en `/` y AppMedica en `/login`, `/register`, `/inicio`, etc.
 
 > **Checklist paso a paso (Windows):** [PASOS-FINALES.md](./PASOS-FINALES.md)
 
@@ -16,7 +16,7 @@ Objetivo: **https://app.daminatoweb.com**
 ## Requisitos previos
 
 - VPS Ubuntu 24.04 con acceso SSH (`root` o usuario con `sudo`)
-- DNS: registro **A** `app` → IP del VPS
+- DNS: registro **A** `@` → IP del VPS (y `www` si aplica)
 - Repositorio Git con el código de AppMedica
 
 ---
@@ -76,8 +76,8 @@ nano backend/.env.prod
 **Verificar:**
 
 - `APP_ENV=production`
-- `CORS_ORIGINS=https://app.daminatoweb.com`
-- `PUBLIC_APP_URL=https://app.daminatoweb.com` (links de reset de contraseña, feed iCal, resumen de agenda)
+- `CORS_ORIGINS=https://daminatoweb.com,https://www.daminatoweb.com`
+- `PUBLIC_APP_URL=https://daminatoweb.com` (links de reset de contraseña, feed iCal, resumen de agenda)
 - `VITE_API_URL=/api/v1` (ruta relativa; nginx proxy `/api/` → backend)
 - `SEED_DEMO=0` (salvo prueba inicial)
 - `REMINDER_BACKGROUND_LOOP=false` (recordatorios vía cron, no loop en uvicorn)
@@ -87,9 +87,10 @@ nano backend/.env.prod
 ## 5. Configurar Nginx en el host
 
 ```bash
-sudo cp nginx/app.daminatoweb.com.conf /etc/nginx/sites-available/
-sudo ln -sf /etc/nginx/sites-available/app.daminatoweb.com.conf /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default   # opcional, si choca el default
+sudo cp nginx/daminatoweb.com.conf /etc/nginx/sites-available/daminatoweb.com.conf
+sudo ln -sf /etc/nginx/sites-available/daminatoweb.com.conf /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/app.daminatoweb.com.conf
+sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
@@ -105,7 +106,7 @@ sudo systemctl reload nginx
 ## 6. Certificado SSL
 
 ```bash
-sudo certbot --nginx -d app.daminatoweb.com
+sudo certbot --nginx -d daminatoweb.com -d www.daminatoweb.com
 ```
 
 Seguí las preguntas de Certbot (email, términos, redirect HTTPS).
@@ -126,13 +127,13 @@ El script hace: `git pull`, `docker compose build`, `up -d`, `alembic upgrade he
 ## 8. Verificar
 
 ```bash
-curl -s https://app.daminatoweb.com/api/v1/health
+curl -s https://daminatoweb.com/api/v1/health
 ```
 
 En el navegador:
 
-- https://app.daminatoweb.com
-- https://app.daminatoweb.com/register
+- https://daminatoweb.com (landing)
+- https://daminatoweb.com/register (AppMedica)
 
 ---
 
