@@ -26,6 +26,31 @@ echo "=========================================="
 echo " AppMédica — setup operativo (prod)"
 echo "=========================================="
 
+# --- 0. URLs públicas (CORS + links en emails) ---
+echo ""
+echo "[0/5] Verificando CORS_ORIGINS, PUBLIC_APP_URL y VITE_API_URL..."
+
+ensure_env() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" "${ENV_FILE}"; then
+    if ! grep -q "^${key}=${value}$" "${ENV_FILE}"; then
+      sed -i "s|^${key}=.*|${key}=${value}|" "${ENV_FILE}"
+      NEEDS_BACKEND_RESTART=1
+      echo "  ${key} actualizado."
+    fi
+  else
+    echo "${key}=${value}" >> "${ENV_FILE}"
+    NEEDS_BACKEND_RESTART=1
+    echo "  ${key} agregado."
+  fi
+}
+
+NEEDS_BACKEND_RESTART=0
+ensure_env "CORS_ORIGINS" "https://app.daminatoweb.com"
+ensure_env "PUBLIC_APP_URL" "https://app.daminatoweb.com"
+ensure_env "VITE_API_URL" "/api/v1"
+
 # --- 1. SMTP ---
 echo ""
 echo "[1/5] Verificando SMTP..."
@@ -38,6 +63,7 @@ if [[ -n "${SMTP_PASSWORD:-}" ]]; then
     echo "SMTP_PASSWORD=${SMTP_PASSWORD}" >> "${ENV_FILE}"
     echo "  SMTP_PASSWORD agregado al .env.prod."
   fi
+  NEEDS_BACKEND_RESTART=1
 fi
 
 # Alinear usuario/remitente con contacto@ (soporte oficial del producto)
@@ -86,12 +112,10 @@ else
   echo "  SMTP_PASSWORD: configurado."
 fi
 
-NEEDS_BACKEND_RESTART=0
 if [[ "${SMTP_OK}" -eq 1 ]]; then
   NEEDS_BACKEND_RESTART=1
 fi
 
-# --- 1b. Recordatorios vía cron (no loop en uvicorn) ---
 echo ""
 echo "[1b/5] Verificando REMINDER_BACKGROUND_LOOP..."
 
@@ -153,7 +177,7 @@ echo ""
 echo ""
 echo "=========================================="
 if [[ "${SMTP_OK}" -eq 1 ]]; then
-  echo " Listo. Probá: https://daminatoweb.com/forgot-password"
+  echo " Listo. Probá: https://app.daminatoweb.com/forgot-password"
 else
   echo " Backup y cron OK. Falta SMTP_PASSWORD para forgot-password."
 fi

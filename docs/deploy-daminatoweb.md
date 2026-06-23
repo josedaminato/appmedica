@@ -1,6 +1,7 @@
 # Deploy — daminatoweb.com
 
-> **Guía actualizada (dominio raíz + landing):** [deploy-daminatoweb-vps.md](./deploy-daminatoweb-vps.md)
+> **Guía vigente:** [DEPLOY.md](./DEPLOY.md) — deploy en **https://app.daminatoweb.com**  
+> Alternativa dominio raíz: [deploy-daminatoweb-vps.md](./deploy-daminatoweb-vps.md)
 
 Configuración concreta para tu Hostinger KVM 1.
 
@@ -118,8 +119,8 @@ Cambiar **obligatorio**:
 - Actualizar `DATABASE_URL` con el mismo password
 
 Dejar:
-- `PUBLIC_URL=https://daminatoweb.com`
-- `CORS_ORIGINS=https://daminatoweb.com,https://www.daminatoweb.com`
+- `PUBLIC_APP_URL=https://app.daminatoweb.com`
+- `CORS_ORIGINS=https://app.daminatoweb.com`
 - `SEED_DEMO=0`
 
 ## 5. Levantar (primero HTTP)

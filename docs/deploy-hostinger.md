@@ -86,7 +86,7 @@ nano .env
 |----------|---------|
 | `JWT_SECRET` | string aleatorio largo (32+ chars) |
 | `POSTGRES_PASSWORD` | password fuerte |
-| `PUBLIC_URL` | `https://app.tudominio.com` |
+| `PUBLIC_APP_URL` | `https://app.tudominio.com` |
 | `CORS_ORIGINS` | `https://app.tudominio.com` |
 | `SEED_DEMO` | `0` en producción real |
 
@@ -129,7 +129,7 @@ docker compose -f docker-compose.prod.yml restart web
 Actualizá `.env`:
 
 ```
-PUBLIC_URL=https://app.tudominio.com
+PUBLIC_APP_URL=https://app.tudominio.com
 CORS_ORIGINS=https://app.tudominio.com
 ```
 

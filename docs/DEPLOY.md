@@ -2,12 +2,14 @@
 
 Objetivo: **https://app.daminatoweb.com**
 
+> **Checklist paso a paso (Windows):** [PASOS-FINALES.md](./PASOS-FINALES.md)
+
 ## Arquitectura
 
 | Componente | Puerto host | Descripción |
 |------------|-------------|-------------|
 | Nginx (host) | 80 / 443 | Proxy público + SSL (Certbot) |
-| Frontend Docker | `127.0.0.1:3000` | React build + nginx:alpine |
+| Frontend Docker | `127.0.0.1:3002` | React build + nginx:alpine |
 | Backend Docker | `127.0.0.1:8000` | FastAPI + Uvicorn |
 | PostgreSQL | *(interno)* | Sin puerto expuesto |
 
@@ -27,7 +29,7 @@ ssh root@IP_DEL_VPS
 
 **VPS Hostinger KVM 1:** `ssh root@72.60.166.24` (hostname `srv1035833.hstgr.cloud`, Boston US).
 
-Credenciales de producción (solo en tu PC, no en Git): `backend/.env.prod` y `deploy/vps.local.env`.
+Credenciales de producción (solo en tu PC, no en Git): `backend/.env.prod` y `deploy/vps.local.env` (plantilla: `deploy/vps.local.env.example`).
 
 ---
 
@@ -75,8 +77,10 @@ nano backend/.env.prod
 
 - `APP_ENV=production`
 - `CORS_ORIGINS=https://app.daminatoweb.com`
-- `VITE_API_URL=https://app.daminatoweb.com/api/v1`
+- `PUBLIC_APP_URL=https://app.daminatoweb.com` (links de reset de contraseña, feed iCal, resumen de agenda)
+- `VITE_API_URL=/api/v1` (ruta relativa; nginx proxy `/api/` → backend)
 - `SEED_DEMO=0` (salvo prueba inicial)
+- `REMINDER_BACKGROUND_LOOP=false` (recordatorios vía cron, no loop en uvicorn)
 
 ---
 
@@ -89,6 +93,12 @@ sudo rm -f /etc/nginx/sites-enabled/default   # opcional, si choca el default
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+
+> **No editar `nginx/app.daminatoweb.com.conf` directamente en el VPS (`/etc/nginx/sites-available/`).** Cualquier cambio debe hacerse en el repo y volver a copiarse con:
+>
+> ```bash
+> sudo cp nginx/app.daminatoweb.com.conf /etc/nginx/sites-available/app.daminatoweb.com.conf && sudo nginx -t && sudo systemctl reload nginx
+> ```
 
 ---
 
@@ -169,7 +179,7 @@ docker compose -f docker-compose.prod.yml --env-file backend/.env.prod ps
 
 - **No exponer** el puerto `5432` de PostgreSQL.
 - El `docker-compose.yml` de desarrollo monta volúmenes y usa `uvicorn --reload`; **no usar en producción**.
-- Si el VPS comparte IP con otros proyectos, AppMedica solo usa `127.0.0.1:3000` y `:8000`; el dominio `app.daminatoweb.com` es independiente.
+- Si el VPS comparte IP con otros proyectos, AppMedica solo usa `127.0.0.1:3002` y `:8000`; el dominio `app.daminatoweb.com` es independiente.
 
 ---
 
@@ -181,3 +191,24 @@ docker compose -f docker-compose.prod.yml --env-file backend/.env.prod ps
 4. Ejecutar `setup-vps.sh` una sola vez
 5. Ejecutar `certbot` la primera vez
 6. Renovación SSL: Certbot instala un timer automático (`certbot renew`)
+
+---
+
+## Sincronizar `.env.prod` al VPS
+
+Si editaste `backend/.env.prod` en tu PC, copialo al servidor y redeploy:
+
+```bash
+scp backend/.env.prod root@72.60.166.24:/opt/appmedica/backend/.env.prod
+ssh root@72.60.166.24 'cd /opt/appmedica && bash scripts/deploy.sh'
+```
+
+Variables críticas para que la app funcione en el navegador:
+
+| Variable | Valor |
+|----------|--------|
+| `CORS_ORIGINS` | `https://app.daminatoweb.com` |
+| `PUBLIC_APP_URL` | `https://app.daminatoweb.com` |
+| `VITE_API_URL` | `/api/v1` |
+
+Sin `PUBLIC_APP_URL`, los emails de recuperación de contraseña y el resumen de agenda apuntan a `http://localhost:5173`.

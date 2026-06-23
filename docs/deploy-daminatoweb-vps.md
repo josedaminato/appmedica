@@ -1,5 +1,8 @@
 # Deploy AppMedica en daminatoweb.com
 
+> **Guía vigente (subdominio `app.daminatoweb.com`):** [DEPLOY.md](./DEPLOY.md)  
+> Este documento describe un deploy alternativo en el **dominio raíz** (`daminatoweb.com`). Si tu instalación usa `app.daminatoweb.com`, seguí **DEPLOY.md** y `nginx/app.daminatoweb.com.conf`.
+
 AppMedica vive en el **dominio raíz**: landing en `/`, app en `/login`, `/register`, `/inicio`, etc., API en `/api/v1`.
 
 | Dato | Valor |
@@ -79,9 +82,9 @@ openssl rand -hex 32   # → JWT_SECRET
 | `POSTGRES_PASSWORD` | Password fuerte (mismo en `DATABASE_URL`) |
 | `JWT_SECRET` | Output de openssl (≥32 chars) |
 | `SEED_DEMO` | `0` |
-| `CORS_ORIGINS` | `https://daminatoweb.com,https://www.daminatoweb.com` |
+| `CORS_ORIGINS` | `https://app.daminatoweb.com` |
 | `VITE_API_URL` | `/api/v1` |
-| `PUBLIC_APP_URL` | `https://daminatoweb.com` |
+| `PUBLIC_APP_URL` | `https://app.daminatoweb.com` |
 
 **SMTP (recomendado para reset de contraseña y emails):**
 

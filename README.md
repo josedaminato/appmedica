@@ -13,15 +13,15 @@ SaaS administrativo para profesionales de la salud en Argentina. Gestión simple
 
 ## Producción (Hostinger VPS)
 
-Para desplegar en **Hostinger VPS** (no hosting compartido):
+Deploy en **https://app.daminatoweb.com** (o tu subdominio):
 
 ```bash
-cp .env.production.example .env
-# Editar JWT_SECRET, passwords y dominio
-docker compose -f docker-compose.prod.yml up -d --build
+cp backend/.env.prod.example backend/.env.prod
+# Editar JWT_SECRET, passwords, SMTP y dominio
+bash scripts/deploy.sh
 ```
 
-Guías: [docs/deploy-daminatoweb-vps.md](docs/deploy-daminatoweb-vps.md) · [docs/DEPLOY.md](docs/DEPLOY.md) · [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
+Guía principal: [docs/DEPLOY.md](docs/DEPLOY.md) · **Pasos finales (checklist):** [docs/PASOS-FINALES.md](docs/PASOS-FINALES.md) · Genérica: [docs/deploy-hostinger.md](docs/deploy-hostinger.md)
 
 
 ## Inicio rápido (Windows)

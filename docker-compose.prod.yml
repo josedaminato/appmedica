@@ -1,7 +1,7 @@
 # AppMedica — producción (VPS Ubuntu 24.04)
 #
-# Nginx del HOST hace proxy (ver nginx/daminatoweb.com.conf):
-#   /     → frontend:3002 (React + landing)
+# Nginx del HOST hace proxy (ver nginx/app.daminatoweb.com.conf):
+#   /     → frontend:3002 (React SPA)
 #   /api/ → backend:8000
 #
 # Uso:

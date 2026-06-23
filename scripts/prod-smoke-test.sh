@@ -3,7 +3,7 @@
 # Uso en VPS:
 #   cd /opt/appmedica && bash scripts/prod-smoke-test.sh
 # Contra prod desde tu PC (solo health + forgot-password genérico):
-#   BASE_URL=https://daminatoweb.com bash scripts/prod-smoke-test.sh
+#   BASE_URL=https://app.daminatoweb.com bash scripts/prod-smoke-test.sh
 
 set -euo pipefail
 
@@ -31,8 +31,8 @@ else
 fi
 
 echo ""
-echo "Checklist manual en el navegador (§8 docs/deploy-daminatoweb-vps.md):"
-echo "  1. https://daminatoweb.com/register — registro con términos"
+echo "Checklist manual en el navegador (docs/DEPLOY.md):"
+echo "  1. https://app.daminatoweb.com/register — registro con términos"
 echo "  2. /insurances — obra social"
 echo "  3. /patients — paciente o import Excel"
 echo "  4. /agenda/new — turno"

@@ -13,7 +13,7 @@ fi
 
 if [ ! -f .env ]; then
   cp .env.production.example .env
-  echo "Creado .env — EDITÁ JWT_SECRET, POSTGRES_PASSWORD y PUBLIC_URL antes de continuar."
+  echo "Creado .env — EDITÁ JWT_SECRET, POSTGRES_PASSWORD y PUBLIC_APP_URL antes de continuar."
   exit 1
 fi
 
@@ -24,5 +24,5 @@ echo ""
 echo "Listo. Verificá:"
 echo "  curl -s http://127.0.0.1/api/v1/health"
 echo ""
-echo "Abrí en el navegador: \${PUBLIC_URL:-http://TU-IP}"
+echo "Abrí en el navegador: \${PUBLIC_APP_URL:-http://TU-IP}"
 echo "Swagger (si APP_ENV != production): /docs"
