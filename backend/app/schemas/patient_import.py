@@ -19,7 +19,7 @@ class PatientImportMapping(BaseModel):
 class PatientImportRowPayload(BaseModel):
     first_name: str = Field(min_length=1, max_length=120)
     last_name: str = Field(min_length=1, max_length=120)
-    dni: str = Field(min_length=7, max_length=20)
+    dni: str | None = Field(default=None, max_length=20)
     phone: str | None = Field(default=None, max_length=30)
     email: str | None = None
     birth_date: str | None = None

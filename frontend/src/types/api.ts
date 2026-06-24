@@ -56,7 +56,7 @@ export interface Patient {
   organization_id: string
   first_name: string
   last_name: string
-  dni: string
+  dni: string | null
   phone: string | null
   email: string | null
   birth_date: string | null
@@ -72,7 +72,7 @@ export interface PatientBrief {
   id: string
   first_name: string
   last_name: string
-  dni: string
+  dni: string | null
   phone?: string | null
 }
 

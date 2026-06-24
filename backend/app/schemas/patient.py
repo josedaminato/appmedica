@@ -34,9 +34,19 @@ class PatientUpdate(BaseModel):
     is_active: bool | None = None
 
 
-class PatientResponse(PatientBase):
+class PatientResponse(BaseModel):
     id: uuid.UUID
     organization_id: uuid.UUID
+    first_name: str
+    last_name: str
+    dni: str | None = None
+    phone: str | None = None
+    email: EmailStr | None = None
+    birth_date: date | None = None
+    health_insurance_id: uuid.UUID | None = None
+    affiliate_number: str | None = None
+    notes: str | None = None
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
 

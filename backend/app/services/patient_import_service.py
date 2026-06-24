@@ -21,13 +21,14 @@ from app.schemas.patient_import import (
     PatientImportPreviewRow,
     PatientImportRowPayload,
 )
+from app.services.column_alias import detect_column_mapping, normalize_column_name
 from app.services.excel_parser import parse_spreadsheet
 
 TARGET_FIELDS = [
     {"key": "first_name", "label": "Nombre"},
     {"key": "last_name", "label": "Apellido"},
     {"key": "full_name", "label": "Nombre completo"},
-    {"key": "dni", "label": "DNI"},
+    {"key": "dni", "label": "DNI (opcional)"},
     {"key": "phone", "label": "Teléfono"},
     {"key": "email", "label": "Email"},
     {"key": "birth_date", "label": "Fecha de nacimiento"},
@@ -36,39 +37,7 @@ TARGET_FIELDS = [
     {"key": "notes", "label": "Notas"},
 ]
 
-COLUMN_ALIASES: dict[str, list[str]] = {
-    "first_name": ["nombre", "nombres", "first name", "first_name", "name"],
-    "last_name": ["apellido", "apellidos", "last name", "last_name", "surname"],
-    "full_name": [
-        "nombre completo",
-        "nombre y apellido",
-        "paciente",
-        "full name",
-        "full_name",
-        "nombre apellido",
-    ],
-    "dni": ["dni", "documento", "doc", "nro documento", "número documento", "cuil"],
-    "phone": ["telefono", "teléfono", "tel", "celular", "phone", "móvil", "movil"],
-    "email": ["email", "correo", "mail", "e-mail"],
-    "birth_date": [
-        "fecha nacimiento",
-        "fecha de nacimiento",
-        "nacimiento",
-        "birth date",
-        "birth_date",
-        "fnac",
-    ],
-    "health_insurance_name": [
-        "obra social",
-        "obrasocial",
-        "os",
-        "prepaga",
-        "health insurance",
-        "cobertura",
-    ],
-    "affiliate_number": ["afiliado", "nro afiliado", "número afiliado", "affiliate", "credencial"],
-    "notes": ["notas", "observaciones", "comentarios", "notes"],
-}
+MIN_DNI_LENGTH = 7
 
 
 class PatientImportService:
@@ -101,6 +70,7 @@ class PatientImportService:
         suggested = mapping or self._suggest_mapping(columns)
         insurances = self.insurance_repo.list_all(organization_id)
         preview_rows: list[PatientImportPreviewRow] = []
+        seen_dnis_in_file: set[str] = set()
 
         for index, raw in enumerate(raw_rows, start=2):
             preview_rows.append(
@@ -110,6 +80,7 @@ class PatientImportService:
                     raw=raw,
                     mapping=suggested,
                     insurances=insurances,
+                    seen_dnis_in_file=seen_dnis_in_file,
                 )
             )
 
@@ -137,17 +108,24 @@ class PatientImportService:
         skipped = 0
         failed = 0
         errors: list[str] = []
+        seen_dnis_in_batch: set[str] = set()
 
         for index, row in enumerate(data.rows, start=1):
-            dni = self._normalize_dni(row.dni)
-            existing = self.patient_repo.get_by_dni(organization_id, dni)
-            if existing:
-                if data.on_duplicate == "fail":
-                    failed += 1
-                    errors.append(f"Fila {index}: DNI {dni} ya existe")
+            dni = self._resolve_dni(row.dni)
+
+            if dni:
+                if dni in seen_dnis_in_batch:
+                    skipped += 1
                     continue
-                skipped += 1
-                continue
+                seen_dnis_in_batch.add(dni)
+                existing = self.patient_repo.get_by_dni(organization_id, dni)
+                if existing:
+                    if data.on_duplicate == "fail":
+                        failed += 1
+                        errors.append(f"Fila {index}: DNI {dni} ya existe")
+                        continue
+                    skipped += 1
+                    continue
 
             email: str | None = None
             if row.email:
@@ -206,23 +184,8 @@ class PatientImportService:
         )
 
     def _suggest_mapping(self, columns: list[str]) -> PatientImportMapping:
-        normalized_cols = {self._norm(col): col for col in columns}
-        mapping: dict[str, str | None] = {key: None for key in COLUMN_ALIASES}
-
-        for field, aliases in COLUMN_ALIASES.items():
-            for alias in aliases:
-                norm_alias = self._norm(alias)
-                if norm_alias in normalized_cols:
-                    mapping[field] = normalized_cols[norm_alias]
-                    break
-            if mapping[field]:
-                continue
-            for norm_col, original in normalized_cols.items():
-                if any(norm_alias in norm_col or norm_col in norm_alias for norm_alias in aliases):
-                    mapping[field] = original
-                    break
-
-        return PatientImportMapping(**mapping)
+        detected = detect_column_mapping(columns)
+        return PatientImportMapping(**detected)
 
     def _build_preview_row(
         self,
@@ -232,6 +195,7 @@ class PatientImportService:
         raw: dict[str, Any],
         mapping: PatientImportMapping,
         insurances: list,
+        seen_dnis_in_file: set[str],
     ) -> PatientImportPreviewRow:
         errors: list[str] = []
         warnings: list[str] = []
@@ -239,19 +203,17 @@ class PatientImportService:
         first_name, last_name, name_warnings = self._resolve_name(raw, mapping)
         warnings.extend(name_warnings)
 
-        dni_raw = self._get_cell(raw, mapping.dni)
-        if not dni_raw:
-            errors.append("Falta DNI")
-            dni = ""
-        else:
-            dni = self._normalize_dni(dni_raw)
-            if len(dni) < 7:
-                errors.append("DNI demasiado corto")
+        if not first_name and not last_name:
+            errors.append("Falta nombre del paciente")
 
-        if not first_name:
-            errors.append("Falta nombre")
-        if not last_name:
-            errors.append("Falta apellido")
+        dni_raw = self._get_cell(raw, mapping.dni)
+        dni: str | None = None
+        if dni_raw:
+            normalized = self._normalize_dni(dni_raw)
+            if len(normalized) >= MIN_DNI_LENGTH:
+                dni = normalized
+            else:
+                warnings.append("DNI inválido o incompleto; se importará sin documento")
 
         phone = self._normalize_phone(self._get_cell(raw, mapping.phone))
         email_raw = self._get_cell(raw, mapping.email)
@@ -260,14 +222,14 @@ class PatientImportService:
             try:
                 email = str(validate_email(email_raw, check_deliverability=False).email)
             except EmailNotValidError:
-                errors.append("Email inválido")
+                warnings.append("Email inválido; se importará sin correo")
 
         birth_raw = self._get_cell(raw, mapping.birth_date)
         birth_date: date | None = None
         if birth_raw:
             birth_date = self._parse_date(birth_raw)
             if birth_date is None:
-                errors.append("Fecha de nacimiento inválida")
+                warnings.append("Fecha de nacimiento inválida; se omitirá")
 
         insurance_name = self._get_cell(raw, mapping.health_insurance_name)
         insurance_id, insurance_warnings = self._match_insurance(insurance_name, insurances)
@@ -285,40 +247,41 @@ class PatientImportService:
             )
 
         assert first_name and last_name
-        existing = self.patient_repo.get_by_dni(organization_id, dni)
-        if existing:
-            return PatientImportPreviewRow(
-                row_number=row_number,
-                status="duplicate",
-                warnings=["Ya existe un paciente con este DNI"],
-                data=PatientImportRowPayload(
-                    first_name=first_name,
-                    last_name=last_name,
-                    dni=dni,
-                    phone=phone,
-                    email=email,
-                    birth_date=birth_date.isoformat() if birth_date else None,
-                    health_insurance_id=str(insurance_id) if insurance_id else None,
-                    affiliate_number=affiliate,
-                    notes=notes,
-                ),
-            )
+        payload = PatientImportRowPayload(
+            first_name=first_name,
+            last_name=last_name,
+            dni=dni,
+            phone=phone,
+            email=email,
+            birth_date=birth_date.isoformat() if birth_date else None,
+            health_insurance_id=str(insurance_id) if insurance_id else None,
+            affiliate_number=affiliate,
+            notes=notes,
+        )
+
+        if dni:
+            if dni in seen_dnis_in_file:
+                return PatientImportPreviewRow(
+                    row_number=row_number,
+                    status="duplicate",
+                    warnings=["DNI repetido en el archivo"],
+                    data=payload,
+                )
+            existing = self.patient_repo.get_by_dni(organization_id, dni)
+            if existing:
+                return PatientImportPreviewRow(
+                    row_number=row_number,
+                    status="duplicate",
+                    warnings=["Ya existe un paciente con este DNI"],
+                    data=payload,
+                )
+            seen_dnis_in_file.add(dni)
 
         return PatientImportPreviewRow(
             row_number=row_number,
             status="valid",
             warnings=warnings,
-            data=PatientImportRowPayload(
-                first_name=first_name,
-                last_name=last_name,
-                dni=dni,
-                phone=phone,
-                email=email,
-                birth_date=birth_date.isoformat() if birth_date else None,
-                health_insurance_id=str(insurance_id) if insurance_id else None,
-                affiliate_number=affiliate,
-                notes=notes,
-            ),
+            data=payload,
         )
 
     def _resolve_name(
@@ -349,11 +312,11 @@ class PatientImportService:
         if not name:
             return None, []
         warnings: list[str] = []
-        norm_name = self._norm(name)
+        norm_name = normalize_column_name(name)
         best_id: uuid.UUID | None = None
         best_score = 0.0
         for ins in insurances:
-            score = SequenceMatcher(None, norm_name, self._norm(ins.name)).ratio()
+            score = SequenceMatcher(None, norm_name, normalize_column_name(ins.name)).ratio()
             if score > best_score:
                 best_score = score
                 best_id = ins.id
@@ -365,12 +328,26 @@ class PatientImportService:
         return None, warnings
 
     def _summarize(self, rows: list[PatientImportPreviewRow]) -> dict[str, int]:
+        valid = sum(1 for r in rows if r.status == "valid")
+        duplicate = sum(1 for r in rows if r.status == "duplicate")
+        error = sum(1 for r in rows if r.status == "error")
         return {
             "total": len(rows),
-            "valid": sum(1 for r in rows if r.status == "valid"),
-            "duplicate": sum(1 for r in rows if r.status == "duplicate"),
-            "error": sum(1 for r in rows if r.status == "error"),
+            "valid": valid,
+            "duplicate": duplicate,
+            "error": error,
+            "to_import": valid,
+            "omitted": duplicate + error,
         }
+
+    @staticmethod
+    def _resolve_dni(value: str | None) -> str | None:
+        if not value:
+            return None
+        normalized = PatientImportService._normalize_dni(value)
+        if len(normalized) < MIN_DNI_LENGTH:
+            return None
+        return normalized
 
     @staticmethod
     def _get_cell(raw: dict[str, Any], column: str | None) -> str:
@@ -378,10 +355,6 @@ class PatientImportService:
             return ""
         value = raw.get(column, "")
         return str(value).strip() if value is not None else ""
-
-    @staticmethod
-    def _norm(value: str) -> str:
-        return re.sub(r"\s+", " ", value.strip().lower())
 
     @staticmethod
     def _normalize_dni(value: str) -> str:

@@ -29,7 +29,7 @@ class Patient(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
 
     first_name: Mapped[str] = mapped_column(String(120), nullable=False)
     last_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    dni: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    dni: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)

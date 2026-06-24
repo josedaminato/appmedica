@@ -32,6 +32,10 @@ type Props = {
 
 type Step = "pick" | "confirm" | "done"
 
+function hasNameMapping(m: PatientImportMapping): boolean {
+  return Boolean(m.full_name) || Boolean(m.first_name) || Boolean(m.last_name)
+}
+
 export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
   const { isAuthenticated } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -53,14 +57,10 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
     return preview.rows.filter((r) => r.status === "valid" && r.data).map((r) => r.data!)
   }, [preview])
 
-  const mappingOk = useMemo(() => {
-    if (!preview) return false
-    const m = preview.suggested_mapping
-    const hasDni = Boolean(m.dni)
-    const hasName =
-      Boolean(m.full_name) || (Boolean(m.first_name) && Boolean(m.last_name))
-    return hasDni && hasName
-  }, [preview])
+  const toImport = preview?.summary.to_import ?? preview?.summary.valid ?? 0
+  const omitted = preview?.summary.omitted ?? 0
+
+  const mappingOk = useMemo(() => hasNameMapping(mapping), [mapping])
 
   function reset() {
     setStep("pick")
@@ -93,7 +93,7 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
         const res = await analyzePatientImport(data, map)
         setPreview(res)
         setMapping(res.suggested_mapping)
-        if (!res.suggested_mapping.dni) {
+        if (!hasNameMapping(res.suggested_mapping)) {
           setShowMapping(true)
         }
         setStep("confirm")
@@ -237,9 +237,9 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
             </p>
 
             <div className="flex flex-wrap gap-2">
-              <Badge variant="success">{preview.summary.valid} listos</Badge>
+              <Badge variant="success">{toImport} a importar</Badge>
               {preview.summary.duplicate > 0 && (
-                <Badge variant="secondary">{preview.summary.duplicate} ya existen</Badge>
+                <Badge variant="secondary">{preview.summary.duplicate} duplicados</Badge>
               )}
               {preview.summary.error > 0 && (
                 <Badge variant="destructive">{preview.summary.error} con error</Badge>
@@ -248,14 +248,20 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
 
             {!mappingOk && (
               <p className="text-sm text-amber-700 dark:text-amber-400">
-                Falta mapear al menos <strong>DNI</strong> y <strong>nombre</strong> (o nombre
-                completo). Abrí “Ajustar columnas” abajo.
+                Falta mapear una columna de <strong>nombre</strong> (nombre completo, nombre o
+                apellido). Abrí “Ajustar columnas” abajo.
               </p>
             )}
 
             <p className="text-sm text-muted-foreground">
-              Se importarán <strong className="text-foreground">{importableRows.length}</strong>{" "}
-              pacientes nuevos.
+              Se importarán{" "}
+              <strong className="text-foreground">{toImport}</strong> pacientes.
+              {omitted > 0 && (
+                <>
+                  {" "}
+                  <strong className="text-foreground">{omitted}</strong> filas serán omitidas.
+                </>
+              )}
             </p>
 
             <button
@@ -263,7 +269,7 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
               className="flex w-full items-center justify-between text-sm font-medium text-muted-foreground hover:text-foreground"
               onClick={() => setShowMapping((v) => !v)}
             >
-              Ajustar columnas (opcional)
+              Ajustar columnas
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${showMapping ? "rotate-180" : ""}`}
               />
@@ -271,6 +277,9 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
 
             {showMapping && (
               <div className="space-y-3 rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground">
+                  Solo el nombre es obligatorio. DNI, teléfono, email y obra social son opcionales.
+                </p>
                 <div className="grid gap-2 max-h-48 overflow-y-auto">
                   {targetFields.map((field) => (
                     <div key={field.key} className="grid grid-cols-2 gap-2 items-center">
@@ -320,7 +329,7 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
           <div className="rounded-lg border bg-muted/30 p-4 space-y-1 text-sm">
             <p className="font-medium text-lg">{result.created} pacientes importados</p>
             {result.skipped > 0 && (
-              <p className="text-muted-foreground">{result.skipped} omitidos (ya estaban cargados)</p>
+              <p className="text-muted-foreground">{result.skipped} omitidos (duplicados)</p>
             )}
             {result.failed > 0 && (
               <p className="text-destructive">{result.failed} no se pudieron guardar</p>
@@ -361,7 +370,7 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
                 onClick={handleImport}
                 disabled={loading || !importableRows.length || !mappingOk}
               >
-                {loading ? "Importando…" : `Importar ${importableRows.length} pacientes`}
+                {loading ? "Importando…" : `Importar ${toImport} pacientes`}
               </Button>
             </>
           )}

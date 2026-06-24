@@ -155,7 +155,7 @@ export function PatientsPage() {
                     {p.last_name}, {p.first_name}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    DNI {p.dni}
+                    DNI {p.dni ?? "—"}
                     {p.phone ? ` · ${p.phone}` : ""}
                   </p>
                 </div>
@@ -183,7 +183,7 @@ export function PatientsPage() {
                         {p.last_name}, {p.first_name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.dni}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.dni ?? "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.phone ?? "—"}</td>
                     <td className="px-4 py-3">
                       <Badge variant={p.is_active ? "success" : "secondary"}>

@@ -17,7 +17,7 @@ export type PatientImportMapping = {
 export type PatientImportRowPayload = {
   first_name: string
   last_name: string
-  dni: string
+  dni?: string | null
   phone?: string | null
   email?: string | null
   birth_date?: string | null
@@ -45,6 +45,8 @@ export type PatientImportPreview = {
     valid: number
     duplicate: number
     error: number
+    to_import?: number
+    omitted?: number
   }
 }
 

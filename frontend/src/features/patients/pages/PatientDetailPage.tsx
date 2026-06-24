@@ -75,7 +75,7 @@ export function PatientDetailPage() {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{patient.last_name}, {patient.first_name}</h1>
-          <p className="text-sm text-muted-foreground">DNI {patient.dni}</p>
+          <p className="text-sm text-muted-foreground">DNI {patient.dni ?? "—"}</p>
         </div>
         <Badge variant={patient.is_active ? "success" : "secondary"}>
           {patient.is_active ? "Activo" : "Inactivo"}
