@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import conflict, not_found
+from app.core.tenant_validation import TenantResourceValidator
 from app.models.patient import Patient
 from app.repositories.patient_repository import PatientRepository
 from app.schemas.common import PaginatedResponse, pagination_meta
@@ -14,6 +15,7 @@ class PatientService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = PatientRepository(db)
+        self.tenant = TenantResourceValidator(db)
 
     def list_patients(
         self,
@@ -46,6 +48,9 @@ class PatientService:
         existing = self.repo.get_by_dni(organization_id, data.dni.strip())
         if existing:
             raise conflict("Ya existe un paciente con ese DNI")
+
+        if data.health_insurance_id is not None:
+            self.tenant.require_health_insurance(organization_id, data.health_insurance_id)
 
         patient = Patient(
             organization_id=organization_id,
@@ -85,8 +90,27 @@ class PatientService:
         if "email" in updates and updates["email"]:
             updates["email"] = str(updates["email"])
 
-        for field, value in updates.items():
-            setattr(patient, field, value)
+        if "health_insurance_id" in updates and updates["health_insurance_id"] is not None:
+            self.tenant.require_health_insurance(organization_id, updates["health_insurance_id"])
+
+        scalar_fields = (
+            "first_name",
+            "last_name",
+            "dni",
+            "phone",
+            "email",
+            "birth_date",
+            "health_insurance_id",
+            "affiliate_number",
+            "notes",
+            "is_active",
+        )
+        for field in scalar_fields:
+            if field in updates:
+                value = updates[field]
+                if field in ("first_name", "last_name", "dni") and isinstance(value, str):
+                    value = value.strip() or (None if field == "dni" else value.strip())
+                setattr(patient, field, value)
 
         self.repo.update(patient)
         self.db.commit()

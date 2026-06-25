@@ -32,9 +32,11 @@ def test_build_ics_calendar_contains_vevent():
     appt.start_at = datetime(2026, 6, 2, 14, 30, tzinfo=timezone.utc)
     appt.end_at = datetime(2026, 6, 2, 15, 0, tzinfo=timezone.utc)
     appt.status = AppointmentStatus.CONFIRMED
-    appt.notes = None
+    appt.notes = "Observación confidencial"
     appt.patient = patient
-    appt.professional = None
+    prof = MagicMock()
+    prof.full_name = "Dr. López"
+    appt.professional = prof
 
     body = build_ics_calendar(
         calendar_name="Test",
@@ -44,10 +46,12 @@ def test_build_ics_calendar_contains_vevent():
     )
     assert "BEGIN:VCALENDAR" in body
     assert "BEGIN:VEVENT" in body
-    assert "Juan" in body
-    assert "Turno" in body
+    assert "Turno AppMedica" in body
+    assert "Juan" not in body
+    assert "Pérez" not in body
     assert "30123456" not in body
     assert "2615551234" not in body
+    assert "Profesional:" in body
     assert f"appointment-{appt.id}@appmedica" in body
 
 

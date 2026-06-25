@@ -45,8 +45,13 @@ def test_production_rejects_background_reminder_loop():
         _settings(reminder_background_loop=True)
 
 
+def test_production_rejects_public_registration():
+    with pytest.raises(ValueError, match="REGISTRATION_ENABLED"):
+        _settings(registration_enabled=True)
+
+
 def test_production_accepts_strong_config():
-    settings = _settings(reminder_background_loop=False)
+    settings = _settings(reminder_background_loop=False, registration_enabled=False)
     assert settings.is_production is True
     assert settings.jwt_secret == STRONG_SECRET
 

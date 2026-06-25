@@ -13,14 +13,37 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $VpsHost = "72.60.166.24"
 $VpsUser = "root"
+$VpsPort = 22
 $AppUrl = "https://app.daminatoweb.com"
 $EnvLocal = Join-Path $root "backend\.env.prod"
+$SshKey = Join-Path $env:USERPROFILE ".ssh\id_ed25519"
+
+function Get-SshArgs() {
+    $args = @("-p", "$VpsPort")
+    if (Test-Path $SshKey) {
+        $args += @("-i", $SshKey, "-o", "IdentitiesOnly=yes")
+    }
+    return $args
+}
 
 function Invoke-Vps([string]$BashCommand) {
     Write-Host ">> $BashCommand" -ForegroundColor DarkGray
-    & ssh "${VpsUser}@${VpsHost}" $BashCommand
+    $sshArgs = Get-SshArgs
+    & ssh @sshArgs "${VpsUser}@${VpsHost}" $BashCommand
     if ($LASTEXITCODE -ne 0) {
         throw "Comando remoto falló (código $LASTEXITCODE)."
+    }
+}
+
+function Invoke-Scp([string]$Local, [string]$Remote) {
+    $scpArgs = @()
+    if (Test-Path $SshKey) {
+        $scpArgs += @("-i", $SshKey, "-o", "IdentitiesOnly=yes")
+    }
+    $scpArgs += @("-P", "$VpsPort", $Local, "${VpsUser}@${VpsHost}:$Remote")
+    & scp @scpArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "scp falló (código $LASTEXITCODE)."
     }
 }
 
@@ -42,8 +65,7 @@ if (-not (Test-Path $EnvLocal)) {
 
 try {
     Write-Host "[1/5] Subiendo backend/.env.prod..." -ForegroundColor White
-    & scp $EnvLocal "${VpsUser}@${VpsHost}:/opt/appmedica/backend/.env.prod"
-    if ($LASTEXITCODE -ne 0) { throw "scp falló." }
+    Invoke-Scp $EnvLocal "/opt/appmedica/backend/.env.prod"
 
     Write-Host "[2/5] git pull + deploy..." -ForegroundColor White
     Invoke-Vps "cd /opt/appmedica && git pull origin main"

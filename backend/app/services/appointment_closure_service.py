@@ -40,26 +40,31 @@ class AppointmentClosureService:
         data: CloseAppointmentRequest,
         current_user: User,
     ) -> AppointmentResponse:
-        appointment = self.appointments.get_by_id(organization_id, appointment_id)
-        if not appointment:
-            raise not_found("Turno")
-        assert_can_access_appointment(current_user, appointment)
-        professional_id = current_user.id
-        if appointment.status != AppointmentStatus.ATTENDED:
-            raise bad_request("Solo se puede cerrar administrativamente un turno marcado como asistió")
-        if appointment.closure_status != AppointmentClosureStatus.NONE:
-            raise bad_request("Este turno ya fue cerrado administrativamente")
+        try:
+            appointment = self.appointments.get_by_id_for_update(organization_id, appointment_id)
+            if not appointment:
+                raise not_found("Turno")
+            assert_can_access_appointment(current_user, appointment)
+            professional_id = current_user.id
+            if appointment.status != AppointmentStatus.ATTENDED:
+                raise bad_request("Solo se puede cerrar administrativamente un turno marcado como asistió")
+            if appointment.closure_status != AppointmentClosureStatus.NONE:
+                raise bad_request("Este turno ya fue cerrado administrativamente")
 
-        closure = data.closure_type
-        if closure == AppointmentClosureStatus.NONE:
-            raise bad_request("closure_type inválido")
+            closure = data.closure_type
+            if closure == AppointmentClosureStatus.NONE:
+                raise bad_request("closure_type inválido")
 
-        if closure == AppointmentClosureStatus.INSURANCE_PENDING:
-            self._close_insurance(appointment, organization_id, data, professional_id)
-        else:
-            self._close_private(appointment, organization_id, data, professional_id, closure)
+            if closure == AppointmentClosureStatus.INSURANCE_PENDING:
+                self._close_insurance(appointment, organization_id, data, professional_id)
+            else:
+                self._close_private(appointment, organization_id, data, professional_id, closure)
 
-        self.db.commit()
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         refreshed = self.appointments.get_by_id(organization_id, appointment_id)
         return AppointmentResponse.model_validate(refreshed)
 

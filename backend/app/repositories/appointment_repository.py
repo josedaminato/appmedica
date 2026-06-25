@@ -31,6 +31,38 @@ class AppointmentRepository(BaseRepository[Appointment]):
         )
         return self.db.scalars(stmt).unique().first()
 
+    def get_by_id_for_update(
+        self,
+        organization_id: uuid.UUID,
+        appointment_id: uuid.UUID,
+    ) -> Appointment | None:
+        stmt = (
+            select(Appointment)
+            .where(
+                Appointment.organization_id == organization_id,
+                Appointment.id == appointment_id,
+            )
+            .with_for_update()
+        )
+        return self.db.scalars(stmt).first()
+
+    def lock_professional_for_schedule(
+        self,
+        organization_id: uuid.UUID,
+        professional_id: uuid.UUID,
+    ) -> None:
+        """Bloquea la fila del profesional para serializar reservas en el mismo horario."""
+        stmt = (
+            select(User)
+            .where(
+                User.organization_id == organization_id,
+                User.id == professional_id,
+            )
+            .with_for_update()
+        )
+        if not self.db.scalars(stmt).first():
+            return
+
     def list_in_range(
         self,
         organization_id: uuid.UUID,
@@ -104,6 +136,38 @@ class AppointmentRepository(BaseRepository[Appointment]):
         if exclude_appointment_id:
             stmt = stmt.where(Appointment.id != exclude_appointment_id)
         return list(self.db.scalars(stmt).unique().all())
+
+    def find_overlapping_for_update(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None,
+        start_at: datetime,
+        end_at: datetime,
+        exclude_appointment_id: uuid.UUID | None = None,
+    ) -> list[Appointment]:
+        if not professional_id:
+            return []
+
+        blocking = (
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED,
+            AppointmentStatus.ATTENDED,
+        )
+        stmt = (
+            select(Appointment)
+            .where(
+                Appointment.organization_id == organization_id,
+                Appointment.professional_id == professional_id,
+                Appointment.status.in_(blocking),
+                Appointment.start_at < end_at,
+                Appointment.end_at > start_at,
+            )
+            .with_for_update()
+        )
+        if exclude_appointment_id:
+            stmt = stmt.where(Appointment.id != exclude_appointment_id)
+        return list(self.db.scalars(stmt).all())
 
     def list_for_calendar_feed(
         self,

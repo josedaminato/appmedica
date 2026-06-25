@@ -88,26 +88,21 @@ def _appointment_to_vevent(
     app_url: str,
     dtstamp: str,
 ) -> list[str]:
-    patient = appt.patient
-    if patient:
-        patient_name = f"{patient.last_name}, {patient.first_name}"
-    else:
-        patient_name = "Paciente"
-
     status_label = _STATUS_LABELS.get(appt.status, appt.status.value)
     prof_name = appt.professional.full_name if appt.professional else "Sin asignar"
+    local_start = appt.start_at.astimezone(tz).strftime("%H:%M")
+    local_end = appt.end_at.astimezone(tz).strftime("%H:%M")
+    local_day = appt.start_at.astimezone(tz).date().isoformat()
 
     description_parts = [
+        f"Fecha: {local_day}",
+        f"Hora: {local_start}–{local_end}",
+        f"Profesional: {prof_name}",
         f"Atención: {_attention_label(appt)}",
         f"Estado: {status_label}",
-        f"Profesional: {prof_name}",
     ]
-    if patient:
-        description_parts.append(f"Paciente: {patient.last_name}, {patient.first_name}")
-    local_day = appt.start_at.astimezone(tz).date().isoformat()
-    description_parts.append(f"Ver en AppMedica: {app_url.rstrip('/')}/agenda?date={local_day}")
 
-    summary = f"Turno — {patient_name}"
+    summary = "Turno AppMedica"
     location = ""
 
     uid = f"appointment-{appt.id}@appmedica"

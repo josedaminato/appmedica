@@ -34,6 +34,7 @@ def _build_probe_app() -> FastAPI:
 
 
 def test_blocks_after_limit_and_returns_429_envelope():
+    limiter.enabled = True
     client = TestClient(_build_probe_app())
 
     for _ in range(3):

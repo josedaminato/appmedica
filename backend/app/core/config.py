@@ -101,6 +101,11 @@ class Settings(BaseSettings):
                 "REMINDER_BACKGROUND_LOOP debe ser false en producción; "
                 "usá cron con scripts/process_reminders.py y scripts/send_daily_agenda.py."
             )
+        if self.registration_enabled:
+            problems.append(
+                "REGISTRATION_ENABLED debe ser false en producción; "
+                "los consultorios se crean manualmente al dar de alta clientes pagos."
+            )
 
         if problems:
             raise ValueError(

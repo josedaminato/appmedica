@@ -22,7 +22,7 @@ def test_assert_no_overlap_raises():
     other.end_at = datetime(2026, 6, 2, 10, 30, tzinfo=timezone.utc)
 
     repo = MagicMock()
-    repo.find_overlapping.return_value = [other]
+    repo.find_overlapping_for_update.return_value = [other]
 
     start = datetime(2026, 6, 2, 10, 15, tzinfo=timezone.utc)
     end = datetime(2026, 6, 2, 10, 45, tzinfo=timezone.utc)
@@ -48,4 +48,4 @@ def test_assert_no_overlap_skips_without_professional():
         start_at=datetime(2026, 6, 2, 10, 0, tzinfo=timezone.utc),
         end_at=datetime(2026, 6, 2, 11, 0, tzinfo=timezone.utc),
     )
-    repo.find_overlapping.assert_not_called()
+    repo.find_overlapping_for_update.assert_not_called()

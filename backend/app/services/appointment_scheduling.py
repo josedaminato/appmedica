@@ -21,7 +21,7 @@ def assert_no_overlap(
     if not professional_id:
         return
 
-    overlaps = repo.find_overlapping(
+    overlaps = repo.find_overlapping_for_update(
         organization_id,
         professional_id=professional_id,
         start_at=start_at,
