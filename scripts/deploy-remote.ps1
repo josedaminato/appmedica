@@ -61,7 +61,7 @@ try {
     Write-Host "[3/6] deploy (build + migraciones)..." -ForegroundColor White
     Invoke-Vps "cd /opt/appmedica && bash scripts/deploy.sh"
 
-    Write-Host "[4/6] nginx (daminatoweb.com — landing + AppMedica)..." -ForegroundColor White
+    Write-Host "[4/6] nginx (daminatoweb.com - landing + AppMedica)..." -ForegroundColor White
     Invoke-Vps "sudo rm -f /etc/nginx/sites-enabled/app.daminatoweb.com.conf"
     Invoke-Vps "sudo cp /opt/appmedica/nginx/daminatoweb.com.conf /etc/nginx/sites-available/daminatoweb.com.conf"
     Invoke-Vps "sudo ln -sf /etc/nginx/sites-available/daminatoweb.com.conf /etc/nginx/sites-enabled/daminatoweb.com.conf"
