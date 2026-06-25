@@ -1,4 +1,3 @@
-import asyncio
 import hashlib
 import logging
 import re
@@ -134,7 +133,7 @@ class AuthService:
         )
         provider = (settings.email_provider or "mock").lower()
         try:
-            asyncio.run(get_email_provider(settings).send(email_payload))
+            get_email_provider(settings).send_sync(email_payload)
         except Exception:
             logger.exception("No se pudo enviar email de reset a %s", user.email)
             if not settings.is_production:

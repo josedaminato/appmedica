@@ -38,6 +38,31 @@ class EmailReminderProvider(ReminderProvider):
         await asyncio.to_thread(self._send_smtp, payload)
         return True
 
+    def send_sync(self, payload: ReminderPayload) -> bool:
+        """Envío síncrono (login, scripts). Evita asyncio.run en workers de uvicorn."""
+        if not payload.email:
+            logger.warning("Email reminder skipped: sin dirección de email")
+            return False
+
+        provider = (self.settings.email_provider or "mock").lower()
+        if provider == "mock":
+            logger.info(
+                "[MOCK EMAIL] Para: %s | Asunto: %s | %s",
+                payload.email,
+                payload.subject or "AppMedica",
+                payload.message[:200],
+            )
+            return True
+
+        if provider != "smtp":
+            raise ValueError(f"Proveedor de email no soportado: {provider}")
+
+        if not self.settings.smtp_host:
+            raise ValueError("SMTP no configurado (SMTP_HOST vacío)")
+
+        self._send_smtp(payload)
+        return True
+
     def _send_smtp(self, payload: ReminderPayload) -> None:
         subject = payload.subject or f"{self.settings.app_name} — Recordatorio"
         from_addr = self.settings.smtp_from_email or self.settings.smtp_user
