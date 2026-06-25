@@ -52,22 +52,22 @@ Invoke-Ssh $startCmd
 Write-Host "[3/3] Esperando resultado (mostrando log)..." -ForegroundColor White
 Write-Host ""
 
-$waitCmd = @"
-for i in \$(seq 1 90); do
-  if grep -q 'LISTO PARA VENDER' $LogFile 2>/dev/null; then
-    tail -30 $LogFile
+$waitCmd = @'
+for i in $(seq 1 90); do
+  if grep -q 'LISTO PARA VENDER' /var/log/appmedica-install.log 2>/dev/null; then
+    tail -30 /var/log/appmedica-install.log
     exit 0
   fi
-  if grep -q 'ERROR — revisar logs' $LogFile 2>/dev/null; then
-    tail -40 $LogFile
+  if grep -q 'ERROR — revisar logs' /var/log/appmedica-install.log 2>/dev/null; then
+    tail -40 /var/log/appmedica-install.log
     exit 1
   fi
   sleep 10
 done
 echo 'TIMEOUT — ultimas lineas del log:'
-tail -40 $LogFile
+tail -40 /var/log/appmedica-install.log
 exit 2
-"@
+'@
 & ssh @sshBase $Vps $waitCmd
 $code = $LASTEXITCODE
 
