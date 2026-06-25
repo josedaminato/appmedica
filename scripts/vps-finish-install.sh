@@ -54,16 +54,41 @@ set_env "PUBLIC_APP_URL" "https://daminatoweb.com"
 set_env "VITE_API_URL" "/api/v1"
 set_env "APP_ENV" "production"
 set_env "REMINDER_BACKGROUND_LOOP" "false"
+set_env "REGISTRATION_ENABLED" "false"
 set_env "SEED_DEMO" "0"
 
 echo ""
-echo "[3/8] Build y levantar servicios..."
-docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --build
+echo "[2b/8] Validar configuración de producción..."
+docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" run --rm --no-deps backend python -c "
+from app.core.config import Settings
+s = Settings()
+assert s.is_production and not s.registration_enabled, 'REVISAR .env.prod'
+print('OK config produccion')
+"
+
+echo ""
+echo "[3/8] Build y levantar base de datos..."
+docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --build db
+echo "Esperando PostgreSQL..."
+for i in $(seq 1 30); do
+  if docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T db pg_isready -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+
+echo ""
+echo "[3b/8] Migraciones (antes de levantar backend)..."
+docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" run --rm --no-deps backend alembic upgrade head
+
+echo ""
+echo "[3c/8] Levantar backend y frontend..."
+docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --build backend frontend
 echo "Esperando backend..."
 sleep 25
 
 echo ""
-echo "[4/8] Migraciones..."
+echo "[4/8] Migraciones (verificación)..."
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T backend alembic upgrade head
 
 echo ""
