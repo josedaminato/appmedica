@@ -88,7 +88,7 @@ export function PatientFormDialog({
       reset({
         first_name: patient.first_name,
         last_name: patient.last_name,
-        dni: patient.dni,
+        dni: patient.dni ?? "",
         phone: patient.phone ?? "",
         email: patient.email ?? "",
         birth_date: patient.birth_date ?? "",
