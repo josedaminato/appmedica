@@ -56,6 +56,10 @@ class Settings(BaseSettings):
 
     public_app_url: str = "http://localhost:5173"
 
+    # Panel interno del operador (clientes y cobros del SaaS)
+    platform_admin_username: str = ""
+    platform_admin_password: str = ""
+
     # Resumen diario por email (agenda del día siguiente)
     daily_agenda_digest_enabled: bool = True
     daily_agenda_digest_hour: int = 21

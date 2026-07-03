@@ -16,6 +16,7 @@ from app.models.enums import UserRole
 from app.models.organization import Organization
 from app.models.password_reset import PasswordResetToken
 from app.models.user import User
+from app.services.platform_service import organization_billing_kwargs
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.password_reset_repository import PasswordResetRepository
 from app.repositories.user_repository import UserRepository
@@ -58,7 +59,11 @@ class AuthService:
         if self.users.get_by_email(email):
             raise conflict("El email ya está registrado")
 
-        org = Organization(name=data.organization_name, slug=_slugify(data.organization_name))
+        org = Organization(
+            name=data.organization_name,
+            slug=_slugify(data.organization_name),
+            **organization_billing_kwargs(),
+        )
         self.orgs.create(org)
 
         user = User(

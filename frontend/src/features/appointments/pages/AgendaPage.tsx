@@ -41,6 +41,7 @@ import {
   formatDate,
   formatMoney,
   formatTimeRange,
+  isoToLocalDateParam,
   toDateParam,
 } from "@/lib/format"
 import { buildAppointmentReminderMessage, buildWhatsAppUrl } from "@/lib/whatsapp"
@@ -279,7 +280,7 @@ export function AgendaPage() {
     if (view === "day") return { [dateParam]: appointments }
     const groups: Record<string, Appointment[]> = {}
     for (const a of appointments) {
-      const d = a.start_at.slice(0, 10)
+      const d = isoToLocalDateParam(a.start_at)
       if (!groups[d]) groups[d] = []
       groups[d].push(a)
     }

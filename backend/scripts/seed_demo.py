@@ -14,6 +14,7 @@ from app.models.user import User
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.user_repository import UserRepository
+from app.services.platform_service import organization_billing_kwargs
 
 DEMO_EMAIL = "demo@consultorio.com"
 DEMO_PASSWORD = "demo12345"
@@ -38,7 +39,7 @@ def main() -> int:
             org = orgs.get_by_id(user.organization_id)
             print(f"OK demo ya existe: {DEMO_EMAIL} ({org.name if org else 'sin org'})")
         else:
-            org = Organization(name=DEMO_ORG, slug="consultorio-demo")
+            org = Organization(name=DEMO_ORG, slug="consultorio-demo", **organization_billing_kwargs())
             orgs.create(org)
             user = User(
                 organization_id=org.id,

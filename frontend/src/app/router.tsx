@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { AppShell } from "@/features/layout/AppShell"
 import { ProtectedRoute } from "./ProtectedRoute"
+import { PlatformProtectedRoute } from "@/features/platform/PlatformProtectedRoute"
 
 const LoginPage = lazy(() =>
   import("@/features/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage })),
@@ -52,6 +53,12 @@ const ReportsPage = lazy(() =>
 const TeamPage = lazy(() =>
   import("@/features/users/pages/TeamPage").then((m) => ({ default: m.TeamPage })),
 )
+const PlatformLoginPage = lazy(() =>
+  import("@/features/platform/pages/PlatformLoginPage").then((m) => ({ default: m.PlatformLoginPage })),
+)
+const PlatformDashboardPage = lazy(() =>
+  import("@/features/platform/pages/PlatformDashboardPage").then((m) => ({ default: m.PlatformDashboardPage })),
+)
 const NotFoundPage = lazy(() =>
   import("@/features/marketing/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 )
@@ -76,6 +83,10 @@ export function AppRouter() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacidad" element={<PrivacyPage />} />
           <Route path="/terminos" element={<TermsPage />} />
+          <Route path="/interno" element={<PlatformLoginPage />} />
+          <Route element={<PlatformProtectedRoute />}>
+            <Route path="/interno/panel" element={<PlatformDashboardPage />} />
+          </Route>
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>

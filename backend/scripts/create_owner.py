@@ -29,6 +29,7 @@ from app.db.session import SessionLocal
 from app.models.enums import UserRole
 from app.models.organization import Organization
 from app.models.user import User
+from app.services.platform_service import organization_billing_kwargs
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.user_repository import UserRepository
 
@@ -91,7 +92,7 @@ def main() -> int:
             _verify(existing, password)
             return 0
 
-        org = Organization(name=args.org, slug=_slugify(args.org))
+        org = Organization(name=args.org, slug=_slugify(args.org), **organization_billing_kwargs())
         orgs.create(org)
         user = User(
             organization_id=org.id,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -17,8 +17,10 @@ from app.models.health_insurance import HealthInsurance
 from app.models.insurance_claim import InsuranceClaim
 from app.models.patient import Patient
 from app.models.user import User
+from app.core.timezone import local_day_bounds_utc, now_local, org_timezone
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
+from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.schemas.collections import CollectionRow, CollectionTab, CollectionsSummary
 
@@ -42,6 +44,12 @@ class CollectionsService:
         self.appointments = AppointmentRepository(db)
         self.payments = PaymentRepository(db)
         self.claims = InsuranceClaimRepository(db)
+        self.organizations = OrganizationRepository(db)
+
+    def _today_local(self, organization_id: uuid.UUID) -> date:
+        """Fecha de hoy en hora del consultorio (no la del servidor en UTC)."""
+        tz = org_timezone(self.organizations.get_by_id(organization_id))
+        return now_local(tz).date()
 
     def get_summary(
         self,
@@ -50,8 +58,11 @@ class CollectionsService:
         professional_id: uuid.UUID | None = None,
     ) -> CollectionsSummary:
         now = datetime.now(timezone.utc)
-        today_start = datetime.combine(now.date(), datetime.min.time(), tzinfo=timezone.utc)
-        today_end = today_start + timedelta(days=1)
+        # "Hoy" en hora del consultorio: un cobro de la tarde-noche (que en UTC
+        # ya cae al día siguiente) debe contar en el día local correcto.
+        tz = org_timezone(self.organizations.get_by_id(organization_id))
+        today_local = now_local(tz).date()
+        today_start, today_end = local_day_bounds_utc(today_local, tz)
 
         if professional_id is None:
             paid_total, paid_count = self.payments.sum_paid_between(
@@ -130,7 +141,7 @@ class CollectionsService:
             stmt = stmt.where(Appointment.professional_id == professional_id)
 
         rows: list[CollectionRow] = []
-        today = date.today()
+        today = self._today_local(organization_id)
         for appt, patient, prof in self.db.execute(stmt).all():
             balance = self.payments.sum_pending_by_appointment(appt.id)
             if balance <= 0:
@@ -181,7 +192,7 @@ class CollectionsService:
         )
         if professional_id:
             stmt = stmt.where(Appointment.professional_id == professional_id)
-        today = date.today()
+        today = self._today_local(organization_id)
         rows: list[CollectionRow] = []
         for claim, patient, insurance in self.db.execute(stmt).all():
             rows.append(

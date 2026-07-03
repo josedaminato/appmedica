@@ -1,5 +1,6 @@
+import { Link } from "react-router-dom"
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
-import { APP_NAME } from "@/lib/constants"
+import { APP_NAME, PLATFORM_LOGIN_PATH } from "@/lib/constants"
 
 export function Footer() {
   return (
@@ -61,6 +62,10 @@ export function Footer() {
             <a href="/terminos" className="hover:text-white transition-colors">
               Términos de uso
             </a>
+            {" · "}
+            <Link to={PLATFORM_LOGIN_PATH} className="hover:text-white transition-colors">
+              Operación
+            </Link>
           </p>
           <div className="flex justify-center">
             <DaminatoLogo variant="footer-bottom" className="opacity-80 hover:opacity-100 transition-opacity brightness-0 invert" />

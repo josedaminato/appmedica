@@ -21,7 +21,7 @@ import { InsuranceCatalogHint } from "@/features/insurances/components/Insurance
 import { listTeam } from "@/features/users/api"
 import { ApiError } from "@/lib/api-client"
 import { conflictMessage } from "@/lib/appointment-schedule"
-import { formatMoney } from "@/lib/format"
+import { formatMoney, isoToLocalDateParam, todayDateParam } from "@/lib/format"
 import { StandardDurationHint } from "../components/AgendaDurationSettings"
 import {
   AppointmentScheduleFields,
@@ -38,7 +38,7 @@ export function NewAppointmentPage() {
 
   const [patientId, setPatientId] = useState("")
   const [professionalId, setProfessionalId] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(todayDateParam)
   const [time, setTime] = useState("09:00")
   const [durationMinutes, setDurationMinutes] = useState(defaultDuration)
 
@@ -104,7 +104,7 @@ export function NewAppointmentPage() {
   const create = useMutation({
     mutationFn: apptApi.createAppointment,
     onSuccess: (appt) => {
-      const d = appt.start_at.slice(0, 10)
+      const d = isoToLocalDateParam(appt.start_at)
       navigate(`/agenda?date=${d}`)
     },
     onError: (err) => {

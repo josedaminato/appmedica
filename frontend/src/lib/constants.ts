@@ -3,11 +3,15 @@ export const APP_NAME = "AppMédica"
 export const APP_TAGLINE =
   "Agenda, pacientes y obras sociales organizados. Sin planillas ni WhatsApp perdido."
 export const TOKEN_KEY = "appmedica_token"
+export const PLATFORM_TOKEN_KEY = "appmedica_platform_token"
+export const PLATFORM_USERNAME_KEY = "appmedica_platform_username"
 
 /** Rutas de acceso a la app desde la landing comercial. */
 export const APP_LOGIN_PATH = "/login"
 export const APP_REGISTER_PATH = "/register"
 export const APP_DASHBOARD_PATH = "/inicio"
+export const PLATFORM_LOGIN_PATH = "/interno"
+export const PLATFORM_DASHBOARD_PATH = "/interno/panel"
 
 /** Logos reales (landingpageDaminato). AppMedica usa SVG en login/panel. */
 export const BRAND_LOGOS = {
