@@ -22,7 +22,7 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    # Registro público de nuevos consultorios (desactivar en prod si vendés manualmente)
+    # Registro público de nuevos consultorios desde /register
     registration_enabled: bool = True
 
     # Rate limiting (anti fuerza bruta en endpoints de autenticacion)
@@ -104,11 +104,6 @@ class Settings(BaseSettings):
             problems.append(
                 "REMINDER_BACKGROUND_LOOP debe ser false en producción; "
                 "usá cron con scripts/process_reminders.py y scripts/send_daily_agenda.py."
-            )
-        if self.registration_enabled:
-            problems.append(
-                "REGISTRATION_ENABLED debe ser false en producción; "
-                "los consultorios se crean manualmente al dar de alta clientes pagos."
             )
 
         if problems:

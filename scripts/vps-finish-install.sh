@@ -54,7 +54,7 @@ set_env "PUBLIC_APP_URL" "https://daminatoweb.com"
 set_env "VITE_API_URL" "/api/v1"
 set_env "APP_ENV" "production"
 set_env "REMINDER_BACKGROUND_LOOP" "false"
-set_env "REGISTRATION_ENABLED" "false"
+set_env "REGISTRATION_ENABLED" "true"
 set_env "SEED_DEMO" "0"
 
 echo ""
@@ -62,7 +62,7 @@ echo "[2b/8] Validar configuración de producción..."
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" run --rm --no-deps backend python -c "
 from app.core.config import Settings
 s = Settings()
-assert s.is_production and not s.registration_enabled, 'REVISAR .env.prod'
+assert s.is_production, 'REVISAR .env.prod'
 print('OK config produccion')
 "
 

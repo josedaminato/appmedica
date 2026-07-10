@@ -52,7 +52,6 @@ Warn-If "VITE_API_URL" { param($v) $v -ne '/api/v1' }
 Warn-If "APP_ENV" { param($v) $v -ne 'production' }
 Warn-If "SEED_DEMO" { param($v) $v -eq '1' }
 Warn-If "REMINDER_BACKGROUND_LOOP" { param($v) $v -ne 'false' }
-Warn-If "REGISTRATION_ENABLED" { param($v) $v -ne 'false' }
 
 Write-Host "=== Validacion backend/.env.prod ===" -ForegroundColor Cyan
 
