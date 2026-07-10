@@ -16,8 +16,13 @@ echo "Certificados actuales:"
 sudo certbot certificates || true
 
 echo ""
-echo "Emitiendo certificado nuevo (Let's Encrypt)..."
-sudo certbot --nginx -d daminatoweb.com -d www.daminatoweb.com --force-renewal
+echo "Emitiendo / reinstalando certificado (Let's Encrypt)..."
+if [[ "${1:-}" == "--force-renewal" ]]; then
+  sudo certbot --nginx -d daminatoweb.com -d www.daminatoweb.com --force-renewal --non-interactive --redirect
+else
+  # Tras copiar nginx del repo (solo HTTP), re-aplica el cert existente sin forzar renovación.
+  sudo certbot --nginx -d daminatoweb.com -d www.daminatoweb.com --non-interactive --redirect
+fi
 
 echo ""
 sudo nginx -t

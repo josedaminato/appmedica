@@ -65,7 +65,7 @@ try {
     Invoke-Vps "sudo rm -f /etc/nginx/sites-enabled/app.daminatoweb.com.conf"
     Invoke-Vps "sudo cp /opt/appmedica/nginx/daminatoweb.com.conf /etc/nginx/sites-available/daminatoweb.com.conf"
     Invoke-Vps "sudo ln -sf /etc/nginx/sites-available/daminatoweb.com.conf /etc/nginx/sites-enabled/daminatoweb.com.conf"
-    Invoke-Vps "sudo nginx -t && sudo systemctl reload nginx"
+    Invoke-Vps "cd /opt/appmedica && sudo bash scripts/fix-ssl-daminatoweb.sh"
 
     Write-Host "[5/6] setup operativo (SMTP, backup, cron)..." -ForegroundColor White
     Invoke-Vps "cd /opt/appmedica && bash scripts/setup-prod-ops.sh"
