@@ -13,6 +13,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppException
 from app.core.middleware import SecurityHeadersMiddleware
+from app.core.ops_events import record_event
 from app.core.rate_limit import limiter
 from app.db.session import SessionLocal
 from app.services.daily_agenda_digest_service import DailyAgendaDigestService
@@ -157,6 +158,14 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Error no controlado en %s", request.url.path)
+    record_event(
+        severity="error",
+        source="api",
+        code="INTERNAL_ERROR",
+        message=f"Error 500 en {request.method} {request.url.path}",
+        path=request.url.path,
+        detail=f"{type(exc).__name__}: {exc}",
+    )
     return JSONResponse(
         status_code=500,
         content={

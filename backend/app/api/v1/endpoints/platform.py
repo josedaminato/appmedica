@@ -7,6 +7,7 @@ from app.schemas.common import MessageResponse
 from app.schemas.platform import (
     PlatformAuthResponse,
     PlatformDashboardResponse,
+    PlatformDiagnosticsResponse,
     PlatformLoginRequest,
     PlatformMarkPaidResponse,
 )
@@ -25,6 +26,11 @@ def platform_login(request: Request, data: PlatformLoginRequest, db: DbSession) 
 @router.get("/dashboard", response_model=PlatformDashboardResponse)
 def platform_dashboard(_admin: PlatformAdmin, db: DbSession) -> PlatformDashboardResponse:
     return PlatformService(db).dashboard()
+
+
+@router.get("/diagnostics", response_model=PlatformDiagnosticsResponse)
+def platform_diagnostics(_admin: PlatformAdmin, db: DbSession) -> PlatformDiagnosticsResponse:
+    return PlatformService(db).diagnostics()
 
 
 @router.post("/tenants/{organization_id}/mark-paid", response_model=PlatformMarkPaidResponse)

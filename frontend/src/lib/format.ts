@@ -29,6 +29,17 @@ export function formatDate(d: string | Date) {
   return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
 }
 
+export function formatDateTime(d: string | Date) {
+  const date = toLocalDate(d)
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
 export function formatTime(d: string) {
   return new Date(d).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
 }

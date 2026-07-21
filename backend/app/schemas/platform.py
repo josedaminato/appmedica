@@ -43,3 +43,31 @@ class PlatformMarkPaidResponse(BaseModel):
     paid_until: date
     payment_status: str
     days_until_due: int | None
+
+
+class PlatformCheckResult(BaseModel):
+    key: str
+    label: str
+    status: str
+    message: str
+    action: str | None = None
+
+
+class PlatformOpsEvent(BaseModel):
+    id: str
+    created_at: str
+    severity: str
+    source: str
+    code: str
+    message: str
+    path: str | None = None
+    detail: str | None = None
+
+
+class PlatformDiagnosticsResponse(BaseModel):
+    overall_status: str
+    checked_at: datetime
+    checks: list[PlatformCheckResult]
+    recent_errors: list[PlatformOpsEvent]
+    error_count_window: int
+    warning_count_window: int

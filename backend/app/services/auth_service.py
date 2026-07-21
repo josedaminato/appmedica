@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.exceptions import bad_request, conflict, forbidden, unauthorized, unavailable
+from app.core.ops_events import record_event
 from app.integrations.reminders.base import ReminderPayload
 from app.integrations.reminders.factory import get_email_provider
 from app.core.security import create_access_token, hash_password, verify_password
@@ -140,8 +141,16 @@ class AuthService:
         provider = (settings.email_provider or "mock").lower()
         try:
             get_email_provider(settings).send_sync(email_payload)
-        except Exception:
+        except Exception as exc:
             logger.exception("No se pudo enviar email de reset a %s", user.email)
+            record_event(
+                severity="error",
+                source="email",
+                code="PASSWORD_RESET_SEND_FAILED",
+                message=f"Falló envío de recuperación a {user.email}",
+                path="/auth/forgot-password",
+                detail=f"{type(exc).__name__}: {exc}",
+            )
             # Invalidar el token: si el mail no salió, el usuario debe poder reintentar limpio.
             token.used_at = datetime.now(timezone.utc)
             self.db.commit()

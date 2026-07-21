@@ -1,6 +1,15 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { AlertTriangle, Building2, CheckCircle2, LogOut, Trash2, Users } from "lucide-react"
+import {
+  Activity,
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  LogOut,
+  RefreshCw,
+  Trash2,
+  Users,
+} from "lucide-react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,9 +21,16 @@ import {
 } from "@/components/ui/dialog"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { QueryErrorState } from "@/components/shared/QueryErrorState"
-import { formatDate, formatMoney } from "@/lib/format"
+import { formatDate, formatDateTime, formatMoney } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { deleteTenant, getPlatformDashboard, markTenantPaid, type PlatformTenantRow } from "../api"
+import {
+  deleteTenant,
+  getPlatformDashboard,
+  getPlatformDiagnostics,
+  markTenantPaid,
+  type PlatformCheckResult,
+  type PlatformTenantRow,
+} from "../api"
 import { usePlatformAuth } from "../PlatformAuthContext"
 
 const STATUS_LABELS: Record<PlatformTenantRow["payment_status"], string> = {
@@ -31,6 +47,40 @@ function statusClass(status: PlatformTenantRow["payment_status"]) {
   return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
 }
 
+function checkStatusClass(status: string) {
+  if (status === "error") return "border-destructive/40 bg-destructive/5"
+  if (status === "warn") return "border-amber-500/40 bg-amber-500/5"
+  return "border-emerald-500/30 bg-emerald-500/5"
+}
+
+function CheckRow({ check }: { check: PlatformCheckResult }) {
+  return (
+    <div className={cn("rounded-lg border p-3", checkStatusClass(check.status))}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-medium text-sm">{check.label}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{check.message}</p>
+          {check.action && (
+            <p className="mt-2 text-xs text-foreground/80">
+              <strong>Qué hacer:</strong> {check.action}
+            </p>
+          )}
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+            check.status === "error" && "bg-destructive/15 text-destructive",
+            check.status === "warn" && "bg-amber-500/20 text-amber-900 dark:text-amber-200",
+            check.status === "ok" && "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200",
+          )}
+        >
+          {check.status === "ok" ? "OK" : check.status === "warn" ? "Atención" : "Error"}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function PlatformDashboardPage() {
   const { logout } = usePlatformAuth()
   const queryClient = useQueryClient()
@@ -39,6 +89,12 @@ export function PlatformDashboardPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["platform-dashboard"],
     queryFn: getPlatformDashboard,
+    refetchInterval: 60_000,
+  })
+
+  const diagnostics = useQuery({
+    queryKey: ["platform-diagnostics"],
+    queryFn: getPlatformDiagnostics,
     refetchInterval: 60_000,
   })
 
@@ -66,6 +122,7 @@ export function PlatformDashboardPage() {
   }
 
   const dueTenants = data.tenants.filter((t) => t.payment_status === "overdue" || t.payment_status === "due_today")
+  const diag = diagnostics.data
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -88,6 +145,88 @@ export function PlatformDashboardPage() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-5 w-5" />
+              Diagnóstico del sistema
+              {diag && (
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-medium",
+                    diag.overall_status === "ok" && "bg-emerald-500/15 text-emerald-800",
+                    diag.overall_status === "warn" && "bg-amber-500/20 text-amber-900",
+                    diag.overall_status === "error" && "bg-destructive/15 text-destructive",
+                  )}
+                >
+                  {diag.overall_status === "ok"
+                    ? "Todo OK"
+                    : diag.overall_status === "warn"
+                      ? "Hay avisos"
+                      : "Hay errores"}
+                </span>
+              )}
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={diagnostics.isFetching}
+              onClick={() => diagnostics.refetch()}
+            >
+              <RefreshCw className={cn("mr-1 h-3.5 w-3.5", diagnostics.isFetching && "animate-spin")} />
+              Revisar ahora
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Chequeos para detectar fallas de email, base de datos y configuración sin entrar al VPS.
+              {diag?.checked_at ? ` Última revisión: ${formatDateTime(diag.checked_at)}.` : ""}
+            </p>
+            {diagnostics.isLoading && <LoadingSkeleton rows={3} />}
+            {diagnostics.isError && (
+              <p className="text-sm text-destructive">No se pudo cargar el diagnóstico. Probá “Revisar ahora”.</p>
+            )}
+            {diag && (
+              <>
+                <div className="grid gap-2">
+                  {diag.checks.map((c) => (
+                    <CheckRow key={c.key} check={c} />
+                  ))}
+                </div>
+                {(diag.error_count_window > 0 || diag.recent_errors.length > 0) && (
+                  <div className="pt-2">
+                    <p className="mb-2 text-sm font-medium">
+                      Errores recientes ({diag.error_count_window} en memoria)
+                    </p>
+                    <div className="max-h-56 space-y-2 overflow-y-auto">
+                      {diag.recent_errors.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sin eventos recientes en este proceso.</p>
+                      ) : (
+                        diag.recent_errors.map((ev) => (
+                          <div key={ev.id} className="rounded-md border bg-background p-2 text-xs">
+                            <div className="flex flex-wrap gap-2 text-muted-foreground">
+                              <span>{formatDateTime(ev.created_at)}</span>
+                              <span className="font-medium text-foreground">{ev.code}</span>
+                              <span>{ev.source}</span>
+                              {ev.path && <span>{ev.path}</span>}
+                            </div>
+                            <p className="mt-1 text-sm">{ev.message}</p>
+                            {ev.detail && (
+                              <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+                                {ev.detail}
+                              </p>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {dueTenants.length > 0 && (
           <Card className="border-destructive/40 bg-destructive/5">
             <CardHeader className="pb-2">
@@ -224,9 +363,8 @@ export function PlatformDashboardPage() {
           <DialogHeader>
             <DialogTitle>¿Eliminar este cliente?</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Se borrará permanentemente el consultorio{" "}
-              <strong>{tenantToDelete?.name}</strong>, sus usuarios, pacientes, turnos y todo el historial. Esta acción
-              no se puede deshacer.
+              Se borrará permanentemente el consultorio <strong>{tenantToDelete?.name}</strong>, sus usuarios,
+              pacientes, turnos y todo el historial. Esta acción no se puede deshacer.
             </p>
           </DialogHeader>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

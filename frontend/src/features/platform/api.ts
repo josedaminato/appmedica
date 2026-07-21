@@ -40,6 +40,38 @@ export function getPlatformDashboard() {
   return platformApiRequest<PlatformDashboard>("/platform/dashboard")
 }
 
+export interface PlatformCheckResult {
+  key: string
+  label: string
+  status: "ok" | "warn" | "error" | string
+  message: string
+  action: string | null
+}
+
+export interface PlatformOpsEvent {
+  id: string
+  created_at: string
+  severity: string
+  source: string
+  code: string
+  message: string
+  path: string | null
+  detail: string | null
+}
+
+export interface PlatformDiagnostics {
+  overall_status: "ok" | "warn" | "error" | string
+  checked_at: string
+  checks: PlatformCheckResult[]
+  recent_errors: PlatformOpsEvent[]
+  error_count_window: number
+  warning_count_window: number
+}
+
+export function getPlatformDiagnostics() {
+  return platformApiRequest<PlatformDiagnostics>("/platform/diagnostics")
+}
+
 export function markTenantPaid(organizationId: string) {
   return platformApiRequest<{ id: string; paid_until: string; payment_status: string }>(
     `/platform/tenants/${organizationId}/mark-paid`,

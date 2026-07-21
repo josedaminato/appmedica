@@ -11,7 +11,9 @@ from app.core.billing import extend_paid_period, initial_paid_until, payment_sta
 from app.core.config import get_settings
 from app.core.dependencies import DbSession
 from app.core.exceptions import forbidden, not_found, unauthorized
+from app.core.ops_events import count_by_severity, list_events
 from app.core.security import create_access_token, decode_access_token
+from app.integrations.reminders.email_adapter import EmailReminderProvider
 from app.models.appointment import Appointment
 from app.models.enums import UserRole
 from app.models.organization import Organization
@@ -21,9 +23,12 @@ from app.repositories.organization_repository import OrganizationRepository
 from app.schemas.common import MessageResponse
 from app.schemas.platform import (
     PlatformAuthResponse,
+    PlatformCheckResult,
     PlatformDashboardResponse,
+    PlatformDiagnosticsResponse,
     PlatformLoginRequest,
     PlatformMarkPaidResponse,
+    PlatformOpsEvent,
     PlatformTenantRow,
 )
 
@@ -122,6 +127,169 @@ class PlatformService:
         self.db.execute(delete(Organization).where(Organization.id == organization_id))
         self.db.commit()
         return MessageResponse(message=f"Consultorio «{name}» eliminado junto con sus usuarios y datos.")
+
+    def diagnostics(self) -> PlatformDiagnosticsResponse:
+        """Chequeos de salud del producto para operar el SaaS sin SSH."""
+        from datetime import datetime, timezone
+
+        from sqlalchemy import text
+
+        settings = get_settings()
+        checks: list[PlatformCheckResult] = []
+
+        # DB
+        try:
+            self.db.execute(text("SELECT 1"))
+            checks.append(
+                PlatformCheckResult(
+                    key="database",
+                    label="Base de datos",
+                    status="ok",
+                    message="PostgreSQL responde correctamente.",
+                )
+            )
+        except Exception as exc:
+            checks.append(
+                PlatformCheckResult(
+                    key="database",
+                    label="Base de datos",
+                    status="error",
+                    message=f"No responde: {exc}",
+                    action="Revisá el contenedor appmedica-db y docker compose ps.",
+                )
+            )
+
+        # Email / SMTP
+        provider = (settings.email_provider or "").lower()
+        if provider != "smtp":
+            checks.append(
+                PlatformCheckResult(
+                    key="email",
+                    label="Email (recuperar contraseña)",
+                    status="error",
+                    message=f"EMAIL_PROVIDER={provider or '(vacío)'}. Debe ser smtp.",
+                    action="En backend/.env.prod poné EMAIL_PROVIDER=smtp y redesplegá.",
+                )
+            )
+        elif not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
+            checks.append(
+                PlatformCheckResult(
+                    key="email",
+                    label="Email (recuperar contraseña)",
+                    status="error",
+                    message="Faltan SMTP_HOST, SMTP_USER o SMTP_PASSWORD.",
+                    action="Completá SMTP en backend/.env.prod (correo Hostinger) y redesplegá.",
+                )
+            )
+        else:
+            try:
+                EmailReminderProvider(settings).verify_connection()
+                checks.append(
+                    PlatformCheckResult(
+                        key="email",
+                        label="Email (recuperar contraseña)",
+                        status="ok",
+                        message=f"SMTP OK ({settings.smtp_host}:{settings.smtp_port} como {settings.smtp_user}).",
+                    )
+                )
+            except Exception as exc:
+                checks.append(
+                    PlatformCheckResult(
+                        key="email",
+                        label="Email (recuperar contraseña)",
+                        status="error",
+                        message=str(exc)[:300],
+                        action="Verificá la clave del correo en hPanel → Email. Luego: bash scripts/test-smtp.sh tu@email.com",
+                    )
+                )
+
+        # Registro público
+        if settings.registration_enabled:
+            checks.append(
+                PlatformCheckResult(
+                    key="registration",
+                    label="Registro de consultorios",
+                    status="ok",
+                    message="Abierto: cualquiera puede crear cuenta en /register.",
+                )
+            )
+        else:
+            checks.append(
+                PlatformCheckResult(
+                    key="registration",
+                    label="Registro de consultorios",
+                    status="warn",
+                    message="Cerrado: nadie puede auto-registrarse.",
+                    action="Si querés altas públicas: REGISTRATION_ENABLED=true y redesplegá.",
+                )
+            )
+
+        # URL pública (links de reset)
+        public = (settings.public_app_url or "").rstrip("/")
+        if public.startswith("https://") and "daminatoweb.com" in public:
+            checks.append(
+                PlatformCheckResult(
+                    key="public_url",
+                    label="URL pública (emails)",
+                    status="ok",
+                    message=f"PUBLIC_APP_URL={public}",
+                )
+            )
+        else:
+            checks.append(
+                PlatformCheckResult(
+                    key="public_url",
+                    label="URL pública (emails)",
+                    status="warn",
+                    message=f"PUBLIC_APP_URL={public or '(vacío)'} — los links de reset pueden salir mal.",
+                    action="Usá https://daminatoweb.com en producción.",
+                )
+            )
+
+        # Panel ops credentials
+        if settings.platform_admin_username and settings.platform_admin_password:
+            checks.append(
+                PlatformCheckResult(
+                    key="ops_login",
+                    label="Acceso panel Operación",
+                    status="ok",
+                    message="Credenciales PLATFORM_ADMIN configuradas.",
+                )
+            )
+        else:
+            checks.append(
+                PlatformCheckResult(
+                    key="ops_login",
+                    label="Acceso panel Operación",
+                    status="error",
+                    message="Faltan PLATFORM_ADMIN_USERNAME / PLATFORM_ADMIN_PASSWORD.",
+                    action="Definilas en backend/.env.prod.",
+                )
+            )
+
+        counts = count_by_severity()
+        recent = [
+            PlatformOpsEvent(**e.to_dict())
+            for e in list_events(limit=30)
+            if e.severity in {"error", "warning"}
+        ]
+
+        statuses = {c.status for c in checks}
+        if "error" in statuses or counts["error"] > 0:
+            overall = "error"
+        elif "warn" in statuses or counts["warning"] > 0:
+            overall = "warn"
+        else:
+            overall = "ok"
+
+        return PlatformDiagnosticsResponse(
+            overall_status=overall,
+            checked_at=datetime.now(timezone.utc),
+            checks=checks,
+            recent_errors=recent,
+            error_count_window=counts["error"],
+            warning_count_window=counts["warning"],
+        )
 
     def _tenant_row(self, org: Organization) -> PlatformTenantRow:
         owner = self.db.scalar(
