@@ -45,8 +45,32 @@ def test_production_rejects_background_reminder_loop():
         _settings(reminder_background_loop=True)
 
 
+def test_production_rejects_mock_email():
+    with pytest.raises(ValueError, match="EMAIL_PROVIDER"):
+        _settings(reminder_background_loop=False, email_provider="mock")
+
+
+def test_production_rejects_incomplete_smtp():
+    with pytest.raises(ValueError, match="SMTP"):
+        _settings(
+            reminder_background_loop=False,
+            email_provider="smtp",
+            smtp_host="smtp.hostinger.com",
+            smtp_user="",
+            smtp_password="",
+        )
+
+
 def test_production_accepts_strong_config():
-    settings = _settings(reminder_background_loop=False, registration_enabled=True)
+    settings = _settings(
+        reminder_background_loop=False,
+        registration_enabled=True,
+        email_provider="smtp",
+        smtp_host="smtp.hostinger.com",
+        smtp_user="contacto@daminatoweb.com",
+        smtp_password="real-password-not-placeholder",
+        smtp_from_email="contacto@daminatoweb.com",
+    )
     assert settings.is_production is True
     assert settings.jwt_secret == STRONG_SECRET
 

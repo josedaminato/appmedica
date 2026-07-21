@@ -47,11 +47,15 @@ export function ForgotPasswordPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {sent ? (
+  {sent ? (
             <div className="space-y-3 text-sm text-muted-foreground" role="status">
               <p>{message}</p>
               <p>
-                Si no llega el email en unos minutos, revisá spam o escribinos por WhatsApp{" "}
+                Revisá la bandeja de entrada y <strong>spam / correo no deseado</strong>. El enlace
+                vence en 2 horas.
+              </p>
+              <p>
+                Si no llega en unos minutos, escribinos por WhatsApp{" "}
                 <a
                   href={`https://wa.me/${SUPPORT_WHATSAPP_PHONE.replace(/\D/g, "")}?text=${encodeURIComponent(SUPPORT_WHATSAPP_PREFILL)}`}
                   className="text-primary hover:underline"
@@ -62,6 +66,9 @@ export function ForgotPasswordPage() {
                 </a>
                 .
               </p>
+              <Button type="button" variant="outline" className="w-full" onClick={() => setSent(false)}>
+                Probar con otro email
+              </Button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">

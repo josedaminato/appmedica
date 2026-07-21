@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.exceptions import bad_request, conflict, forbidden, unauthorized
+from app.core.exceptions import bad_request, conflict, forbidden, unauthorized, unavailable
 from app.integrations.reminders.base import ReminderPayload
 from app.integrations.reminders.factory import get_email_provider
 from app.core.security import create_access_token, hash_password, verify_password
@@ -126,26 +126,34 @@ class AuthService:
         reset_url = f"{settings.public_app_url.rstrip('/')}/reset-password?token={raw_token}"
         body = (
             f"Hola {user.full_name},\n\n"
-            f"Recibimos una solicitud para restablecer tu contraseña en {settings.app_name}.\n"
+            f"Recibimos una solicitud para restablecer tu contraseña en AppMédica.\n\n"
             f"Abrí este enlace (válido 2 horas):\n{reset_url}\n\n"
-            "Si no pediste esto, ignorá el mensaje."
+            "Si no pediste esto, ignorá el mensaje.\n\n"
+            "— Equipo AppMédica / Daminato Web"
         )
         email_payload = ReminderPayload(
             patient_name=user.full_name,
             message=body,
             email=user.email,
-            subject=f"{settings.app_name} — Restablecer contraseña",
+            subject="AppMédica — Restablecer contraseña",
         )
         provider = (settings.email_provider or "mock").lower()
         try:
             get_email_provider(settings).send_sync(email_payload)
         except Exception:
             logger.exception("No se pudo enviar email de reset a %s", user.email)
-            if not settings.is_production:
+            # Invalidar el token: si el mail no salió, el usuario debe poder reintentar limpio.
+            token.used_at = datetime.now(timezone.utc)
+            self.db.commit()
+            if provider == "mock" and not settings.is_production:
                 logger.warning(
-                    "[DEV] Falló el envío de reset para %s. Revisá SMTP o usá EMAIL_PROVIDER=mock en desarrollo.",
+                    "[DEV] Falló el envío de reset para %s. Revisá SMTP o usá EMAIL_PROVIDER=mock.",
                     user.email,
                 )
+            raise unavailable(
+                "No pudimos enviar el email de recuperación. "
+                "Intentá de nuevo en unos minutos o contactanos por WhatsApp."
+            ) from None
 
         if provider == "mock" and not settings.is_production:
             logger.info(

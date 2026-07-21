@@ -24,3 +24,7 @@ def forbidden(message: str = "Acceso denegado") -> AppException:
 
 def bad_request(message: str) -> AppException:
     return AppException(status.HTTP_400_BAD_REQUEST, "BAD_REQUEST", message)
+
+
+def unavailable(message: str) -> AppException:
+    return AppException(status.HTTP_503_SERVICE_UNAVAILABLE, "EMAIL_SEND_FAILED", message)

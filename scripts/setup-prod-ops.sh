@@ -99,7 +99,7 @@ for var in SMTP_HOST SMTP_PORT SMTP_USER SMTP_FROM_EMAIL; do
   fi
 done
 
-SMTP_PASS="$(grep '^SMTP_PASSWORD=' "${ENV_FILE}" | cut -d= -f2- || true)"
+SMTP_PASS="$(grep '^SMTP_PASSWORD=' "${ENV_FILE}" | cut -d= -f2- | sed 's/^"//;s/"$//;s/^'\''//;s/'\''$//' || true)"
 if [[ -z "${SMTP_PASS}" || "${SMTP_PASS}" == *"CAMBIAR"* ]]; then
   echo ""
   echo "  ATENCIÓN: SMTP_PASSWORD no está configurado."
@@ -133,8 +133,24 @@ echo "  REMINDER_BACKGROUND_LOOP=false (cron procesa recordatorios)."
 if [[ "${NEEDS_BACKEND_RESTART}" -eq 1 ]]; then
   echo "  Reiniciando backend para aplicar cambios de entorno..."
   docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --force-recreate backend
-  sleep 3
+  sleep 8
   echo "  Backend reiniciado."
+fi
+
+if [[ "${SMTP_OK}" -eq 1 ]]; then
+  echo "  Probando login SMTP contra Hostinger..."
+  if docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" exec -T backend python -c "
+from app.core.config import get_settings
+from app.integrations.reminders.email_adapter import EmailReminderProvider
+EmailReminderProvider(get_settings()).verify_connection()
+print('SMTP login OK')
+"; then
+    echo "  SMTP login OK."
+  else
+    echo "  ATENCIÓN: login SMTP falló. Revisá usuario/contraseña del correo en Hostinger."
+    echo "  Probá: bash scripts/test-smtp.sh tu-email@gmail.com"
+    SMTP_OK=0
+  fi
 fi
 
 # --- 2. Backup manual ---

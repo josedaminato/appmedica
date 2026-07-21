@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
     smtp_use_tls: bool = True
+    # Si true (o puerto 465), usa SMTP_SSL. Si falla, el adapter prueba el otro modo.
+    smtp_use_ssl: bool = False
 
     # WhatsApp: disabled ($0) | mock (logs) | twilio | meta (de pago)
     whatsapp_provider: str = "disabled"
@@ -105,6 +107,22 @@ class Settings(BaseSettings):
                 "REMINDER_BACKGROUND_LOOP debe ser false en producción; "
                 "usá cron con scripts/process_reminders.py y scripts/send_daily_agenda.py."
             )
+
+        email_provider = (self.email_provider or "").lower()
+        if email_provider != "smtp":
+            problems.append(
+                "EMAIL_PROVIDER debe ser smtp en producción "
+                "(sin eso no llegan recuperación de contraseña ni emails)."
+            )
+        else:
+            if not self.smtp_host or not self.smtp_user or not self.smtp_password:
+                problems.append(
+                    "SMTP incompleto: configurá SMTP_HOST, SMTP_USER y SMTP_PASSWORD."
+                )
+            if not self.smtp_from_email:
+                problems.append("SMTP_FROM_EMAIL vacío: usá el mismo correo del buzón (ej. contacto@daminatoweb.com).")
+            if "CAMBIAR" in (self.smtp_password or ""):
+                problems.append("SMTP_PASSWORD todavía tiene el valor de ejemplo (CAMBIAR...).")
 
         if problems:
             raise ValueError(
