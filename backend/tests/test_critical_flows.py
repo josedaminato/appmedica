@@ -144,7 +144,7 @@ def test_critical_clinic_flow(mock_reminder_cls, api_client):
         },
     )
     assert appt_resp.status_code == 201, appt_resp.text
-    appt_id = appt_resp.json()["id"]
+    appt_id = appt_resp.json()["appointments"][0]["id"]
 
     attend = client.post(f"/api/v1/appointments/{appt_id}/attend", headers=headers)
     assert attend.status_code == 200, attend.text

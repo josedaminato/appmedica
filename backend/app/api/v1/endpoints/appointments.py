@@ -9,11 +9,13 @@ from app.models.enums import AppointmentClosureStatus, AppointmentStatus
 from app.schemas.appointment import (
     AddPaymentRequest,
     AppointmentCreate,
+    AppointmentCreateResult,
     AppointmentRescheduleRequest,
     AppointmentResponse,
     AppointmentUpdate,
     CloseAppointmentRequest,
 )
+from app.schemas.common import MessageResponse
 from app.services.appointment_closure_service import AppointmentClosureService
 from app.services.appointment_service import AppointmentService
 
@@ -43,12 +45,12 @@ def list_appointments(
     )
 
 
-@router.post("", response_model=AppointmentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AppointmentCreateResult, status_code=status.HTTP_201_CREATED)
 def create_appointment(
     data: AppointmentCreate,
     current_user: CurrentUser,
     db: DbSession,
-) -> AppointmentResponse:
+) -> AppointmentCreateResult:
     return AppointmentService(db).create_appointment(
         current_user.organization_id,
         data,
@@ -113,6 +115,17 @@ def cancel_appointment(
     db: DbSession,
 ) -> AppointmentResponse:
     return AppointmentService(db).cancel(current_user.organization_id, appointment_id, current_user)
+
+
+@router.post("/{appointment_id}/cancel-series", response_model=MessageResponse)
+def cancel_appointment_series(
+    appointment_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> MessageResponse:
+    return AppointmentService(db).cancel_series_from(
+        current_user.organization_id, appointment_id, current_user,
+    )
 
 
 @router.post("/{appointment_id}/reschedule", response_model=AppointmentResponse)

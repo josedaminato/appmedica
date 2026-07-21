@@ -88,6 +88,7 @@ export interface Appointment {
   professional_id: string | null
   health_insurance_id: string | null
   rescheduled_to_id: string | null
+  series_id: string | null
   start_at: string
   end_at: string
   status: AppointmentStatus

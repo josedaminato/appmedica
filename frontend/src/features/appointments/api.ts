@@ -17,6 +17,14 @@ export interface AppointmentPayload {
   expected_amount?: number | null
   health_insurance_id?: string | null
   notes?: string | null
+  recurring_weekly?: boolean
+  weeks?: number
+}
+
+export interface AppointmentCreateResult {
+  created_count: number
+  series_id: string | null
+  appointments: Appointment[]
 }
 
 export interface ClosePayload {
@@ -45,7 +53,10 @@ export function listAppointments(params: {
 }
 
 export function createAppointment(data: AppointmentPayload) {
-  return apiRequest<Appointment>("/appointments", { method: "POST", body: JSON.stringify(data) })
+  return apiRequest<AppointmentCreateResult>("/appointments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
 }
 
 export function confirmAppointment(id: string) {
@@ -62,6 +73,10 @@ export function noShowAppointment(id: string) {
 
 export function cancelAppointment(id: string) {
   return apiRequest<Appointment>(`/appointments/${id}/cancel`, { method: "POST" })
+}
+
+export function cancelAppointmentSeries(id: string) {
+  return apiRequest<{ message: string }>(`/appointments/${id}/cancel-series`, { method: "POST" })
 }
 
 export function rescheduleAppointment(

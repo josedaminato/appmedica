@@ -162,7 +162,7 @@ def _create_appointment(
         payload["health_insurance_id"] = health_insurance_id
     resp = client.post("/api/v1/appointments", headers=headers, json=payload)
     assert resp.status_code == 201, resp.text
-    return resp.json()["id"]
+    return resp.json()["appointments"][0]["id"]
 
 
 @patch("app.services.appointment_service.ReminderService")

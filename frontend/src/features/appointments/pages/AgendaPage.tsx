@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useLocation, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Calendar,
@@ -11,6 +11,13 @@ import {
   SlidersHorizontal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,6 +111,7 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
 
 export function AgendaPage() {
   const qc = useQueryClient()
+  const location = useLocation()
   const { lockedProfessionalId, canFilterByProfessional } = useRoleScope()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialDate = searchParams.get("date")
@@ -168,9 +176,18 @@ export function AgendaPage() {
   const [closeTarget, setCloseTarget] = useState<Appointment | null>(null)
   const [paymentTarget, setPaymentTarget] = useState<Appointment | null>(null)
   const [rescheduleTarget, setRescheduleTarget] = useState<Appointment | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null)
   const [actionError, setActionError] = useState("")
   const [actionSuccess, setActionSuccess] = useState("")
   const [calendarOpen, setCalendarOpen] = useState(false)
+
+  useEffect(() => {
+    const msg = (location.state as { successMessage?: string } | null)?.successMessage
+    if (msg) {
+      setActionSuccess(msg)
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
 
   useEffect(() => {
     if (!actionSuccess) return
@@ -215,16 +232,25 @@ export function AgendaPage() {
       if (act === "attend") return apptApi.attendAppointment(id)
       if (act === "no_show") return apptApi.noShowAppointment(id)
       if (act === "cancel") return apptApi.cancelAppointment(id)
+      if (act === "cancel_series") return apptApi.cancelAppointmentSeries(id)
     },
     onSuccess: (data, variables) => {
       setActionError("")
+      setCancelTarget(null)
       invalidateAll(qc)
       if (variables.action === "confirm") setActionSuccess("Turno confirmado")
       if (variables.action === "cancel") setActionSuccess("Turno cancelado")
+      if (variables.action === "cancel_series") {
+        const message =
+          data && typeof data === "object" && "message" in data
+            ? String((data as { message: string }).message)
+            : "Serie de turnos fijos cancelada"
+        setActionSuccess(message)
+      }
       if (variables.action === "no_show") setActionSuccess("Marcado como ausente")
-      if (variables.action === "attend" && data) {
+      if (variables.action === "attend" && data && "status" in (data as object)) {
         setActionSuccess("Paciente asistió — completá el cierre")
-        setCloseTarget(data)
+        setCloseTarget(data as Appointment)
       }
     },
     onError: (err) => {
@@ -457,6 +483,7 @@ export function AgendaPage() {
                       if (act === "close") setCloseTarget(a)
                       else if (act === "payment") setPaymentTarget(a)
                       else if (act === "reschedule") setRescheduleTarget(a)
+                      else if (act === "cancel") setCancelTarget(a)
                       else action.mutate({ id: a.id, action: act })
                     }}
                     actionPending={action.isPending}
@@ -501,6 +528,43 @@ export function AgendaPage() {
         }}
         loading={paymentMutation.isPending}
       />
+
+      <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancelar turno</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {cancelTarget?.series_id
+              ? "Este es un turno fijo. Podés cancelar solo esta fecha o este y todos los siguientes de la serie."
+              : "¿Confirmás cancelar este turno?"}
+          </p>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              variant="destructive"
+              disabled={action.isPending}
+              onClick={() => cancelTarget && action.mutate({ id: cancelTarget.id, action: "cancel" })}
+            >
+              {cancelTarget?.series_id ? "Solo este turno" : "Sí, cancelar"}
+            </Button>
+            {cancelTarget?.series_id && (
+              <Button
+                variant="outline"
+                className="text-destructive"
+                disabled={action.isPending}
+                onClick={() =>
+                  cancelTarget && action.mutate({ id: cancelTarget.id, action: "cancel_series" })
+                }
+              >
+                Este y los siguientes
+              </Button>
+            )}
+            <Button variant="ghost" disabled={action.isPending} onClick={() => setCancelTarget(null)}>
+              Volver
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -644,6 +708,7 @@ function AppointmentRow({
             attentionType={a.attention_type}
             healthInsuranceName={a.health_insurance?.name}
           />
+          {a.series_id && <Badge variant="secondary">Fijo</Badge>}
           <AppointmentStatusBadge status={a.status} />
           <ClosureStatusBadge status={a.closure_status} showUnclosed={needsClose} />
         </div>

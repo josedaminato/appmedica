@@ -59,6 +59,8 @@ export function NewAppointmentPage() {
   }, [attentionType, defaultSessionAmount])
   const [insuranceId, setInsuranceId] = useState("")
   const [formError, setFormError] = useState("")
+  const [recurringWeekly, setRecurringWeekly] = useState(false)
+  const [weeks, setWeeks] = useState("12")
 
   const [patientQ, setPatientQ] = useState("")
 
@@ -103,9 +105,16 @@ export function NewAppointmentPage() {
 
   const create = useMutation({
     mutationFn: apptApi.createAppointment,
-    onSuccess: (appt) => {
+    onSuccess: (result) => {
+      const appt = result.appointments[0]
+      if (!appt) return
       const d = isoToLocalDateParam(appt.start_at)
-      navigate(`/agenda?date=${d}`)
+      navigate(`/agenda?date=${d}`, {
+        state:
+          result.created_count > 1
+            ? { successMessage: `Se crearon ${result.created_count} turnos fijos (uno por semana).` }
+            : undefined,
+      })
     },
     onError: (err) => {
       setFormError(err instanceof ApiError ? err.message : "No se pudo crear el turno")
@@ -139,6 +148,8 @@ export function NewAppointmentPage() {
       attention_type: attentionType,
       expected_amount: amount ? Number(amount) : null,
       health_insurance_id: attentionType === "health_insurance" ? insuranceId || null : null,
+      recurring_weekly: recurringWeekly,
+      weeks: recurringWeekly ? Number(weeks) : 1,
     })
   }
 
@@ -215,6 +226,40 @@ export function NewAppointmentPage() {
               dayAppointments={dayAppointments}
             />
 
+            <div className="space-y-3 rounded-lg border p-3">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 shrink-0 rounded border-input accent-primary"
+                  checked={recurringWeekly}
+                  onChange={(e) => setRecurringWeekly(e.target.checked)}
+                />
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Turno fijo semanal</span>
+                  <span className="block text-muted-foreground">
+                    Mismo paciente, mismo día y hora cada semana (ideal para tratamientos regulares).
+                  </span>
+                </span>
+              </label>
+              {recurringWeekly && (
+                <div className="space-y-2 pl-6">
+                  <Label>Cuántas semanas generar</Label>
+                  <Select value={weeks} onValueChange={setWeeks}>
+                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="4">4 semanas</SelectItem>
+                      <SelectItem value="8">8 semanas</SelectItem>
+                      <SelectItem value="12">12 semanas</SelectItem>
+                      <SelectItem value="24">24 semanas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Se crean {weeks} turnos. Si algún horario ya está ocupado, no se guarda ninguno.
+                  </p>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Modalidad</Label>
@@ -279,7 +324,11 @@ export function NewAppointmentPage() {
 
             <div className="flex gap-2">
               <Button type="submit" disabled={submitDisabled}>
-                {create.isPending ? "Guardando..." : "Guardar turno"}
+                {create.isPending
+                  ? "Guardando..."
+                  : recurringWeekly
+                    ? `Guardar ${weeks} turnos fijos`
+                    : "Guardar turno"}
               </Button>
               <Button type="button" variant="outline" asChild>
                 <Link to="/agenda">Cancelar</Link>

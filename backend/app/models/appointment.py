@@ -48,6 +48,11 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("appointments.id", ondelete="SET NULL"),
         nullable=True,
     )
+    series_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        index=True,
+    )
 
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

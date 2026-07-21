@@ -341,6 +341,31 @@ class AppointmentRepository(BaseRepository[Appointment]):
         stmt = select(func.count()).select_from(Appointment).where(*conditions)
         return self.db.scalar(stmt) or 0
 
+    def list_series_from(
+        self,
+        organization_id: uuid.UUID,
+        series_id: uuid.UUID,
+        *,
+        from_start_at: datetime,
+        statuses: tuple[AppointmentStatus, ...] | None = None,
+    ) -> list[Appointment]:
+        """Turnos de una serie desde from_start_at (inclusive), ordenados por inicio."""
+        active = statuses or (
+            AppointmentStatus.PENDING,
+            AppointmentStatus.CONFIRMED,
+        )
+        stmt = self._with_relations(
+            select(Appointment)
+            .where(
+                Appointment.organization_id == organization_id,
+                Appointment.series_id == series_id,
+                Appointment.start_at >= from_start_at,
+                Appointment.status.in_(active),
+            )
+            .order_by(Appointment.start_at.asc()),
+        )
+        return list(self.db.scalars(stmt).unique().all())
+
     def create(self, appointment: Appointment) -> Appointment:
         self.db.add(appointment)
         self.db.flush()

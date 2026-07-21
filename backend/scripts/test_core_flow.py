@@ -42,6 +42,12 @@ def assert_ok(data, code, msg):
         raise AssertionError(f"{msg}: {code} {data}")
 
 
+def appointment_from_create(data: dict) -> dict:
+    if isinstance(data, dict) and "appointments" in data:
+        return data["appointments"][0] if data["appointments"] else {}
+    return data if isinstance(data, dict) else {}
+
+
 def main():
     print("=== Test flujo AppMedica ===\n")
     print(f"API: {BASE}\n")
@@ -95,7 +101,8 @@ def main():
         }
         if extra:
             body.update(extra)
-        return req("POST", "/appointments", body, token)
+        data, code = req("POST", "/appointments", body, token)
+        return appointment_from_create(data), code
 
     tests = []
 
@@ -153,7 +160,7 @@ def main():
         token,
     )
     if code < 300:
-        aid3 = appt3["id"]
+        aid3 = appointment_from_create(appt3)["id"]
         req("POST", f"/appointments/{aid3}/confirm", token=token)
         req("POST", f"/appointments/{aid3}/attend", token=token)
         req(
@@ -189,7 +196,7 @@ def main():
             token,
         )
         if code < 300:
-            aid4 = appt4["id"]
+            aid4 = appointment_from_create(appt4)["id"]
             req("POST", f"/appointments/{aid4}/confirm", token=token)
             req("POST", f"/appointments/{aid4}/attend", token=token)
             c4, code = req(
@@ -219,7 +226,7 @@ def main():
         token,
     )
     if code < 300:
-        aid5 = appt5["id"]
+        aid5 = appointment_from_create(appt5)["id"]
         req("POST", f"/appointments/{aid5}/confirm", token=token)
         req("POST", f"/appointments/{aid5}/no-show", token=token)
         admin, _ = req("GET", f"/patients/{patient_id}/admin-summary", token=token)
@@ -237,7 +244,7 @@ def main():
         token,
     )
     if code < 300:
-        aid6 = appt6["id"]
+        aid6 = appointment_from_create(appt6)["id"]
         req("POST", f"/appointments/{aid6}/cancel", token=token)
         tests.append(("cancelado", True, "ok"))
 
@@ -253,7 +260,7 @@ def main():
         token,
     )
     if code < 300:
-        old_id = appt_res["id"]
+        old_id = appointment_from_create(appt_res)["id"]
         new_start = start2 + timedelta(days=3, hours=9)
         new_end = new_start + timedelta(minutes=30)
         new_appt, code_r = req(
@@ -282,7 +289,7 @@ def main():
         token,
     )
     if code < 300:
-        aid7 = appt7["id"]
+        aid7 = appointment_from_create(appt7)["id"]
         req("POST", f"/appointments/{aid7}/confirm", token=token)
         req("POST", f"/appointments/{aid7}/attend", token=token)
         dash7, _ = req("GET", "/dashboard/summary", token=token)

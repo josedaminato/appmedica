@@ -13,14 +13,16 @@ from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.patient_repository import PatientRepository
-from app.services.appointment_scheduling import assert_no_overlap
-from app.services.reminder_service import ReminderService
 from app.schemas.appointment import (
     AppointmentCreate,
+    AppointmentCreateResult,
     AppointmentRescheduleRequest,
     AppointmentResponse,
     AppointmentUpdate,
 )
+from app.schemas.common import MessageResponse
+from app.services.appointment_scheduling import assert_no_overlap
+from app.services.reminder_service import ReminderService
 
 
 class AppointmentService:
@@ -81,7 +83,7 @@ class AppointmentService:
         organization_id: uuid.UUID,
         data: AppointmentCreate,
         current_user: User,
-    ) -> AppointmentResponse:
+    ) -> AppointmentCreateResult:
         self.tenant.require_patient(organization_id, data.patient_id)
         if data.end_at <= data.start_at:
             raise bad_request("La hora de fin debe ser posterior al inicio")
@@ -95,38 +97,60 @@ class AppointmentService:
         if data.health_insurance_id is not None:
             self.tenant.require_health_insurance(organization_id, data.health_insurance_id)
 
+        weeks = data.weeks if data.recurring_weekly else 1
+        series_id = uuid.uuid4() if data.recurring_weekly else None
+        duration = data.end_at - data.start_at
+        created: list[Appointment] = []
+
         try:
             self.repo.lock_professional_for_schedule(organization_id, professional_id)
-            assert_no_overlap(
-                self.repo,
-                organization_id,
-                professional_id=professional_id,
-                start_at=data.start_at,
-                end_at=data.end_at,
-            )
 
-            appointment = Appointment(
-                organization_id=organization_id,
-                patient_id=data.patient_id,
-                professional_id=professional_id,
-                start_at=data.start_at,
-                end_at=data.end_at,
-                modality=data.modality,
-                attention_type=data.attention_type,
-                expected_amount=data.expected_amount,
-                health_insurance_id=data.health_insurance_id,
-                notes=data.notes,
-                status=AppointmentStatus.PENDING,
-                closure_status=AppointmentClosureStatus.NONE,
-            )
-            self.repo.create(appointment)
+            for week_offset in range(weeks):
+                start_at = data.start_at + timedelta(weeks=week_offset)
+                end_at = start_at + duration
+                assert_no_overlap(
+                    self.repo,
+                    organization_id,
+                    professional_id=professional_id,
+                    start_at=start_at,
+                    end_at=end_at,
+                )
+
+                appointment = Appointment(
+                    organization_id=organization_id,
+                    patient_id=data.patient_id,
+                    professional_id=professional_id,
+                    start_at=start_at,
+                    end_at=end_at,
+                    modality=data.modality,
+                    attention_type=data.attention_type,
+                    expected_amount=data.expected_amount,
+                    health_insurance_id=data.health_insurance_id,
+                    notes=data.notes,
+                    series_id=series_id,
+                    status=AppointmentStatus.PENDING,
+                    closure_status=AppointmentClosureStatus.NONE,
+                )
+                self.repo.create(appointment)
+                created.append(appointment)
+
             self.db.commit()
         except Exception:
             self.db.rollback()
             raise
 
-        ReminderService(self.db).schedule_for_appointment(organization_id, appointment.id)
-        return self.get_appointment(organization_id, appointment.id)
+        reminders = ReminderService(self.db)
+        for appointment in created:
+            reminders.schedule_for_appointment(organization_id, appointment.id)
+
+        responses = [
+            self.get_appointment(organization_id, appointment.id) for appointment in created
+        ]
+        return AppointmentCreateResult(
+            created_count=len(responses),
+            series_id=series_id,
+            appointments=responses,
+        )
 
     def update_appointment(
         self,
@@ -264,6 +288,49 @@ class AppointmentService:
         ReminderService(self.db).cancel_for_appointment(organization_id, appointment_id)
         return result
 
+    def cancel_series_from(
+        self,
+        organization_id: uuid.UUID,
+        appointment_id: uuid.UUID,
+        current_user: User,
+    ) -> MessageResponse:
+        """Cancela este turno fijo y todos los siguientes de la misma serie."""
+        appointment = self.repo.get_by_id(organization_id, appointment_id)
+        if not appointment:
+            raise not_found("Turno")
+        assert_can_access_appointment(current_user, appointment)
+        if not appointment.series_id:
+            raise bad_request("Este turno no pertenece a una serie fija")
+        if appointment.status not in (AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED):
+            raise bad_request("Solo se pueden cancelar turnos pendientes o confirmados de la serie")
+
+        to_cancel = self.repo.list_series_from(
+            organization_id,
+            appointment.series_id,
+            from_start_at=appointment.start_at,
+        )
+        if not to_cancel:
+            raise bad_request("No hay turnos pendientes en esta serie desde la fecha elegida")
+
+        reminders = ReminderService(self.db)
+        for item in to_cancel:
+            assert_can_access_appointment(current_user, item)
+            item.status = AppointmentStatus.CANCELLED
+            self.repo.update(item)
+        self.db.commit()
+
+        for item in to_cancel:
+            reminders.cancel_for_appointment(organization_id, item.id)
+
+        count = len(to_cancel)
+        return MessageResponse(
+            message=(
+                f"Se cancelaron {count} turnos fijos (este y los siguientes)."
+                if count > 1
+                else "Se canceló el turno fijo."
+            ),
+        )
+
     def reschedule(
         self,
         organization_id: uuid.UUID,
@@ -308,6 +375,8 @@ class AppointmentService:
                 expected_amount=old.expected_amount,
                 health_insurance_id=old.health_insurance_id,
                 notes=data.notes or old.notes,
+                # Reprogramar un turno de la serie lo saca de la serie (queda puntual).
+                series_id=None,
                 status=AppointmentStatus.PENDING,
                 closure_status=AppointmentClosureStatus.NONE,
             )

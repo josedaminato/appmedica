@@ -122,7 +122,9 @@ def main() -> int:
         token,
     )
     record("Crear turno", code in (200, 201), f"{code}")
-    aid = appt.get("id")
+    aid = (appt.get("appointments") or [{}])[0].get("id") if isinstance(appt, dict) else None
+    if not aid:
+        aid = appt.get("id") if isinstance(appt, dict) else None
 
     if aid:
         for step, path in [
