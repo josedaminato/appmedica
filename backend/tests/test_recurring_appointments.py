@@ -127,12 +127,14 @@ def test_create_weekly_fixed_appointments(mock_reminder_cls, api_client, db_sess
     body = resp.json()
     assert body["created_count"] == 4
     assert body["series_id"] is not None
+    assert body["series_indefinite"] is False
     assert len(body["appointments"]) == 4
 
     starts = [datetime.fromisoformat(a["start_at"].replace("Z", "+00:00")) for a in body["appointments"]]
     assert starts[1] - starts[0] == timedelta(days=7)
     assert starts[3] - starts[0] == timedelta(days=21)
     assert all(a["series_id"] == body["series_id"] for a in body["appointments"])
+    assert all(a["series_indefinite"] is False for a in body["appointments"])
 
     from uuid import UUID
 
@@ -140,6 +142,99 @@ def test_create_weekly_fixed_appointments(mock_reminder_cls, api_client, db_sess
         select(Appointment).where(Appointment.series_id == UUID(body["series_id"])),
     ).all()
     assert len(rows) == 4
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_create_indefinite_fixed_without_weeks(mock_reminder_cls, api_client, db_session: Session):
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    headers = _login(client, clinic["email"], clinic["password"])
+    start = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
+
+    resp = client.post(
+        "/api/v1/appointments",
+        headers=headers,
+        json={
+            "patient_id": str(clinic["patient"].id),
+            "professional_id": str(clinic["owner"].id),
+            "start_at": start.isoformat(),
+            "end_at": (start + timedelta(minutes=50)).isoformat(),
+            "modality": "presencial",
+            "attention_type": "private",
+            "recurring_weekly": True,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    from app.services.recurring_series import INDEFINITE_HORIZON_WEEKS
+
+    assert body["created_count"] == INDEFINITE_HORIZON_WEEKS
+    assert body["series_indefinite"] is True
+    assert all(a["series_indefinite"] is True for a in body["appointments"])
+
+    from uuid import UUID
+
+    rows = db_session.scalars(
+        select(Appointment).where(Appointment.series_id == UUID(body["series_id"])),
+    ).all()
+    assert len(rows) == INDEFINITE_HORIZON_WEEKS
+    assert all(r.series_indefinite for r in rows)
+
+
+@patch("app.services.recurring_series.ReminderService")
+@patch("app.services.appointment_service.ReminderService")
+def test_extend_indefinite_series_when_horizon_short(
+    mock_appt_reminder_cls,
+    mock_series_reminder_cls,
+    api_client,
+    db_session: Session,
+):
+    """Si el último turno activo está cerca, el cron agrega más semanas."""
+    from uuid import UUID
+
+    from app.services.recurring_series import extend_indefinite_series
+
+    client, clinic = api_client
+    mock_appt_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    mock_series_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    headers = _login(client, clinic["email"], clinic["password"])
+    # Solo 2 semanas creadas "a mano" como si el horizonte se hubiera consumido.
+    start = datetime.now(timezone.utc) + timedelta(days=3)
+    start = start.replace(hour=10, minute=0, second=0, microsecond=0)
+
+    create = client.post(
+        "/api/v1/appointments",
+        headers=headers,
+        json={
+            "patient_id": str(clinic["patient"].id),
+            "professional_id": str(clinic["owner"].id),
+            "start_at": start.isoformat(),
+            "end_at": (start + timedelta(minutes=50)).isoformat(),
+            "modality": "presencial",
+            "attention_type": "private",
+            "recurring_weekly": True,
+            "weeks": 2,
+        },
+    )
+    assert create.status_code == 201, create.text
+    series_id = UUID(create.json()["series_id"])
+
+    # Marcar como indefinida (simulando fijo continuo ya parcialmente consumido).
+    for row in db_session.scalars(select(Appointment).where(Appointment.series_id == series_id)).all():
+        row.series_indefinite = True
+    db_session.commit()
+
+    result = extend_indefinite_series(db_session)
+    assert result["series_extended"] == 1
+    assert result["appointments_created"] >= 1
+
+    rows = db_session.scalars(
+        select(Appointment)
+        .where(Appointment.series_id == series_id)
+        .order_by(Appointment.start_at),
+    ).all()
+    assert len(rows) > 2
+    assert all(r.series_indefinite for r in rows)
 
 
 @patch("app.services.appointment_service.ReminderService")

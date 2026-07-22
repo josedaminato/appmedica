@@ -14,6 +14,7 @@ ENV_FILE="backend/.env.prod"
 CRON_BACKUP='0 3 * * * cd /opt/appmedica && bash scripts/backup-db.sh >> /var/log/appmedica-backup.log 2>&1'
 CRON_REMINDERS='*/5 * * * * cd /opt/appmedica && docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T backend python scripts/process_reminders.py >> /var/log/appmedica-reminders.log 2>&1'
 CRON_DIGEST='0 0 * * * cd /opt/appmedica && docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T backend python scripts/send_daily_agenda.py >> /var/log/appmedica-digest.log 2>&1'
+CRON_SERIES='0 4 * * * cd /opt/appmedica && docker compose -f docker-compose.prod.yml --env-file backend/.env.prod exec -T backend python scripts/extend_indefinite_series.py >> /var/log/appmedica-series.log 2>&1'
 
 cd "${APP_DIR}"
 
@@ -182,6 +183,12 @@ if crontab -l 2>/dev/null | grep -qF 'send_daily_agenda.py'; then
 else
   (crontab -l 2>/dev/null || true; echo "${CRON_DIGEST}") | crontab -
   echo "  Cron agregado: ${CRON_DIGEST}"
+fi
+if crontab -l 2>/dev/null | grep -qF 'extend_indefinite_series.py'; then
+  echo "  Cron de turnos fijos continuos ya existe."
+else
+  (crontab -l 2>/dev/null || true; echo "${CRON_SERIES}") | crontab -
+  echo "  Cron agregado: ${CRON_SERIES}"
 fi
 
 # --- 4. Health ---

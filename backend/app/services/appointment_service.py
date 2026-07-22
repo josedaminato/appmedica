@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
@@ -22,6 +23,7 @@ from app.schemas.appointment import (
 )
 from app.schemas.common import MessageResponse
 from app.services.appointment_scheduling import assert_no_overlap
+from app.services.recurring_series import resolve_create_weeks
 from app.services.reminder_service import ReminderService
 
 
@@ -97,7 +99,10 @@ class AppointmentService:
         if data.health_insurance_id is not None:
             self.tenant.require_health_insurance(organization_id, data.health_insurance_id)
 
-        weeks = data.weeks if data.recurring_weekly else 1
+        weeks, series_indefinite = resolve_create_weeks(
+            recurring_weekly=data.recurring_weekly,
+            weeks=data.weeks,
+        )
         series_id = uuid.uuid4() if data.recurring_weekly else None
         duration = data.end_at - data.start_at
         created: list[Appointment] = []
@@ -128,6 +133,7 @@ class AppointmentService:
                     health_insurance_id=data.health_insurance_id,
                     notes=data.notes,
                     series_id=series_id,
+                    series_indefinite=series_indefinite,
                     status=AppointmentStatus.PENDING,
                     closure_status=AppointmentClosureStatus.NONE,
                 )
@@ -149,6 +155,7 @@ class AppointmentService:
         return AppointmentCreateResult(
             created_count=len(responses),
             series_id=series_id,
+            series_indefinite=series_indefinite,
             appointments=responses,
         )
 
@@ -317,6 +324,15 @@ class AppointmentService:
             assert_can_access_appointment(current_user, item)
             item.status = AppointmentStatus.CANCELLED
             self.repo.update(item)
+
+        # Cortar renovación automática del fijo continuo.
+        if appointment.series_indefinite:
+            for row in self.db.scalars(
+                select(Appointment).where(Appointment.series_id == appointment.series_id),
+            ).all():
+                row.series_indefinite = False
+                self.repo.update(row)
+
         self.db.commit()
 
         for item in to_cancel:
@@ -377,6 +393,7 @@ class AppointmentService:
                 notes=data.notes or old.notes,
                 # Reprogramar un turno de la serie lo saca de la serie (queda puntual).
                 series_id=None,
+                series_indefinite=False,
                 status=AppointmentStatus.PENDING,
                 closure_status=AppointmentClosureStatus.NONE,
             )

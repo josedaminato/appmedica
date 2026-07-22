@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,6 +52,11 @@ class Appointment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True),
         nullable=True,
         index=True,
+    )
+    series_indefinite: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
     )
 
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)

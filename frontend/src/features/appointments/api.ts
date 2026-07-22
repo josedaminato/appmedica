@@ -24,6 +24,7 @@ export interface AppointmentPayload {
 export interface AppointmentCreateResult {
   created_count: number
   series_id: string | null
+  series_indefinite?: boolean
   appointments: Appointment[]
 }
 

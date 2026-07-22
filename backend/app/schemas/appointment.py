@@ -25,10 +25,14 @@ class AppointmentBase(BaseModel):
 
 
 class AppointmentCreate(AppointmentBase):
-    """Si recurring_weekly=True, genera turnos cada 7 días (incluye el primero)."""
+    """Si recurring_weekly=True, genera turnos cada 7 días (incluye el primero).
+
+    weeks=None → fijo continuo (sin fecha de fin; se generan semanas por adelantado).
+    weeks=N → serie limitada a N semanas.
+    """
 
     recurring_weekly: bool = False
-    weeks: int = Field(default=12, ge=1, le=52)
+    weeks: int | None = Field(default=None, ge=1, le=52)
 
 
 class AppointmentUpdate(BaseModel):
@@ -75,6 +79,7 @@ class AppointmentResponse(BaseModel):
     health_insurance_id: uuid.UUID | None
     rescheduled_to_id: uuid.UUID | None
     series_id: uuid.UUID | None = None
+    series_indefinite: bool = False
     start_at: datetime
     end_at: datetime
     status: AppointmentStatus
@@ -95,6 +100,7 @@ class AppointmentResponse(BaseModel):
 class AppointmentCreateResult(BaseModel):
     created_count: int
     series_id: uuid.UUID | None = None
+    series_indefinite: bool = False
     appointments: list[AppointmentResponse]
 
 

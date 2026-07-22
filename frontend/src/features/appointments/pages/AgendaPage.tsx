@@ -708,7 +708,11 @@ function AppointmentRow({
             attentionType={a.attention_type}
             healthInsuranceName={a.health_insurance?.name}
           />
-          {a.series_id && <Badge variant="secondary">Fijo</Badge>}
+          {a.series_id && (
+            <Badge variant="secondary">
+              {a.series_indefinite ? "Fijo continuo" : "Fijo"}
+            </Badge>
+          )}
           <AppointmentStatusBadge status={a.status} />
           <ClosureStatusBadge status={a.closure_status} showUnclosed={needsClose} />
         </div>

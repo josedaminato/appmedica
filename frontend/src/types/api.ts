@@ -89,6 +89,7 @@ export interface Appointment {
   health_insurance_id: string | null
   rescheduled_to_id: string | null
   series_id: string | null
+  series_indefinite?: boolean
   start_at: string
   end_at: string
   status: AppointmentStatus

@@ -60,6 +60,7 @@ export function NewAppointmentPage() {
   const [insuranceId, setInsuranceId] = useState("")
   const [formError, setFormError] = useState("")
   const [recurringWeekly, setRecurringWeekly] = useState(false)
+  const [recurringDuration, setRecurringDuration] = useState<"continuo" | "limitado">("continuo")
   const [weeks, setWeeks] = useState("12")
 
   const [patientQ, setPatientQ] = useState("")
@@ -112,7 +113,11 @@ export function NewAppointmentPage() {
       navigate(`/agenda?date=${d}`, {
         state:
           result.created_count > 1
-            ? { successMessage: `Se crearon ${result.created_count} turnos fijos (uno por semana).` }
+            ? {
+                successMessage: result.series_indefinite
+                  ? `Se crearon ${result.created_count} turnos fijos semanales (continúan hasta que canceles la serie).`
+                  : `Se crearon ${result.created_count} turnos fijos (uno por semana).`,
+              }
             : undefined,
       })
     },
@@ -149,7 +154,8 @@ export function NewAppointmentPage() {
       expected_amount: amount ? Number(amount) : null,
       health_insurance_id: attentionType === "health_insurance" ? insuranceId || null : null,
       recurring_weekly: recurringWeekly,
-      weeks: recurringWeekly ? Number(weeks) : 1,
+      weeks:
+        recurringWeekly && recurringDuration === "limitado" ? Number(weeks) : undefined,
     })
   }
 
@@ -237,25 +243,53 @@ export function NewAppointmentPage() {
                 <span className="text-sm">
                   <span className="font-medium text-foreground">Turno fijo semanal</span>
                   <span className="block text-muted-foreground">
-                    Mismo paciente, mismo día y hora cada semana (ideal para tratamientos regulares).
+                    Mismo paciente, mismo día y hora cada semana. Ideal cuando el tratamiento
+                    no tiene fecha de alta definida.
                   </span>
                 </span>
               </label>
               {recurringWeekly && (
-                <div className="space-y-2 pl-6">
-                  <Label>Cuántas semanas generar</Label>
-                  <Select value={weeks} onValueChange={setWeeks}>
-                    <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="4">4 semanas</SelectItem>
-                      <SelectItem value="8">8 semanas</SelectItem>
-                      <SelectItem value="12">12 semanas</SelectItem>
-                      <SelectItem value="24">24 semanas</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Se crean {weeks} turnos. Si algún horario ya está ocupado, no se guarda ninguno.
-                  </p>
+                <div className="space-y-3 pl-6">
+                  <div className="space-y-2">
+                    <Label>Duración</Label>
+                    <Select
+                      value={recurringDuration}
+                      onValueChange={(v) => setRecurringDuration(v as "continuo" | "limitado")}
+                    >
+                      <SelectTrigger className="w-full max-w-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="continuo">Fijo continuo (sin fecha de fin)</SelectItem>
+                        <SelectItem value="limitado">Por un tiempo limitado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {recurringDuration === "continuo" ? (
+                    <p className="text-xs text-muted-foreground">
+                      Se generan varias semanas por adelantado y se van renovando solas.
+                      Cuando des el alta, cancelá la serie desde la agenda.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Cuántas semanas generar</Label>
+                      <Select value={weeks} onValueChange={setWeeks}>
+                        <SelectTrigger className="w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="4">4 semanas</SelectItem>
+                          <SelectItem value="8">8 semanas</SelectItem>
+                          <SelectItem value="12">12 semanas</SelectItem>
+                          <SelectItem value="24">24 semanas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Se crean {weeks} turnos. Si algún horario ya está ocupado, no se guarda
+                        ninguno.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -327,7 +361,9 @@ export function NewAppointmentPage() {
                 {create.isPending
                   ? "Guardando..."
                   : recurringWeekly
-                    ? `Guardar ${weeks} turnos fijos`
+                    ? recurringDuration === "continuo"
+                      ? "Guardar turno fijo continuo"
+                      : `Guardar ${weeks} turnos fijos`
                     : "Guardar turno"}
               </Button>
               <Button type="button" variant="outline" asChild>
