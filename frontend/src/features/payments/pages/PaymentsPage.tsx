@@ -224,7 +224,7 @@ export function PaymentsPage() {
             sub="turnos asistidos"
             icon={ClipboardList}
             highlight={summary.unclosed_attended > 0}
-            href="/agenda?status=attended&closure=none"
+            href="/agenda/resolver?kind=unclosed"
           />
         </div>
       )}

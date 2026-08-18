@@ -270,15 +270,47 @@ class AppointmentRepository(BaseRepository[Appointment]):
         )
         return list(self.db.scalars(stmt).unique().all())
 
-    def list_unclosed_attended(self, organization_id: uuid.UUID, limit: int = 10) -> list[Appointment]:
+    def list_unclosed_attended(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+        limit: int = 200,
+    ) -> list[Appointment]:
+        conditions = [
+            Appointment.organization_id == organization_id,
+            Appointment.status == AppointmentStatus.ATTENDED,
+            Appointment.closure_status == AppointmentClosureStatus.NONE,
+        ]
+        if professional_id:
+            conditions.append(Appointment.professional_id == professional_id)
         stmt = self._with_relations(
             select(Appointment)
-            .where(
-                Appointment.organization_id == organization_id,
-                Appointment.status == AppointmentStatus.ATTENDED,
-                Appointment.closure_status == AppointmentClosureStatus.NONE,
-            )
-            .order_by(Appointment.start_at.desc())
+            .where(*conditions)
+            .order_by(Appointment.start_at.asc())
+            .limit(limit),
+        )
+        return list(self.db.scalars(stmt).unique().all())
+
+    def list_overdue_unresolved(
+        self,
+        organization_id: uuid.UUID,
+        now: datetime,
+        *,
+        professional_id: uuid.UUID | None = None,
+        limit: int = 200,
+    ) -> list[Appointment]:
+        conditions = [
+            Appointment.organization_id == organization_id,
+            Appointment.end_at < now,
+            Appointment.status.in_([AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED]),
+        ]
+        if professional_id:
+            conditions.append(Appointment.professional_id == professional_id)
+        stmt = self._with_relations(
+            select(Appointment)
+            .where(*conditions)
+            .order_by(Appointment.start_at.asc())
             .limit(limit),
         )
         return list(self.db.scalars(stmt).unique().all())

@@ -25,13 +25,13 @@ export function PendingTasks({ summary, alerts }: Props) {
         summary.unclosed_attended === 1
           ? "Tenés 1 turno que asistió y todavía no está cerrado."
           : `Tenés ${summary.unclosed_attended} turnos que asistieron y todavía no están cerrados.`,
-      href: "/agenda?status=attended&closure=none",
+      href: "/agenda/resolver?kind=unclosed",
       cta: "Ver turnos",
     },
     summary.overdue_unresolved > 0 && {
       id: "overdue",
       text: `Tenés ${summary.overdue_unresolved} ${plural(summary.overdue_unresolved, "turno", "turnos")} que ya pasaron y no se resolvieron.`,
-      href: "/agenda?status=pending",
+      href: "/agenda/resolver?kind=overdue",
       cta: "Ver agenda",
     },
     summary.upcoming_unconfirmed > 0 && {

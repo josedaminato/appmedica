@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Query, status
 
@@ -42,6 +43,21 @@ def list_appointments(
         status=status,
         patient_q=patient_q,
         closure_status=closure_status,
+    )
+
+
+@router.get("/to-resolve", response_model=list[AppointmentResponse])
+def list_appointments_to_resolve(
+    current_user: CurrentUser,
+    db: DbSession,
+    kind: Literal["unclosed", "overdue"] = Query(...),
+    professional_id: uuid.UUID | None = None,
+) -> list[AppointmentResponse]:
+    prof_filter = resolve_professional_filter(current_user, professional_id)
+    return AppointmentService(db).list_to_resolve(
+        current_user.organization_id,
+        kind=kind,
+        professional_id=prof_filter,
     )
 
 

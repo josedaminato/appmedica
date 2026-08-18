@@ -1,5 +1,6 @@
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -65,6 +66,26 @@ class AppointmentService:
             patient_q=patient_q,
             closure_status=closure_status,
         )
+        return [AppointmentResponse.model_validate(a) for a in items]
+
+    def list_to_resolve(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        kind: Literal["unclosed", "overdue"],
+        professional_id: uuid.UUID | None,
+    ) -> list[AppointmentResponse]:
+        if kind == "unclosed":
+            items = self.repo.list_unclosed_attended(
+                organization_id,
+                professional_id=professional_id,
+            )
+        else:
+            items = self.repo.list_overdue_unresolved(
+                organization_id,
+                datetime.now(timezone.utc),
+                professional_id=professional_id,
+            )
         return [AppointmentResponse.model_validate(a) for a in items]
 
     def get_appointment(

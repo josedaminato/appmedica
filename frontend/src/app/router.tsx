@@ -32,6 +32,11 @@ const DashboardPage = lazy(() =>
 const AgendaPage = lazy(() =>
   import("@/features/appointments/pages/AgendaPage").then((m) => ({ default: m.AgendaPage })),
 )
+const ResolveAppointmentsPage = lazy(() =>
+  import("@/features/appointments/pages/ResolveAppointmentsPage").then((m) => ({
+    default: m.ResolveAppointmentsPage,
+  })),
+)
 const NewAppointmentPage = lazy(() =>
   import("@/features/appointments/pages/NewAppointmentPage").then((m) => ({ default: m.NewAppointmentPage })),
 )
@@ -92,6 +97,7 @@ export function AppRouter() {
             <Route element={<AppShell />}>
               <Route path="inicio" element={<DashboardPage />} />
               <Route path="agenda" element={<AgendaPage />} />
+              <Route path="agenda/resolver" element={<ResolveAppointmentsPage />} />
               <Route path="agenda/new" element={<NewAppointmentPage />} />
               <Route path="patients" element={<PatientsPage />} />
               <Route path="patients/:id" element={<PatientDetailPage />} />

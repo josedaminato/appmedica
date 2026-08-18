@@ -53,6 +53,12 @@ export function listAppointments(params: {
   return apiRequest<Appointment[]>(`/appointments?${qs}`)
 }
 
+export type ToResolveKind = "unclosed" | "overdue"
+
+export function listAppointmentsToResolve(kind: ToResolveKind) {
+  return apiRequest<Appointment[]>(`/appointments/to-resolve?kind=${kind}`)
+}
+
 export function createAppointment(data: AppointmentPayload) {
   return apiRequest<AppointmentCreateResult>("/appointments", {
     method: "POST",
