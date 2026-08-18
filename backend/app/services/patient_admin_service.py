@@ -16,7 +16,12 @@ from app.repositories.patient_repository import PatientRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.schemas.appointment import AppointmentResponse
 from app.schemas.insurance_claim import InsuranceClaimResponse
-from app.schemas.patient_admin import PatientAdminSummary, TimelineEvent
+from app.schemas.patient_admin import (
+    PatientAdminSummary,
+    PatientOpenClaim,
+    PatientPendingPayment,
+    TimelineEvent,
+)
 from app.schemas.payment import PaymentResponse
 
 
@@ -50,11 +55,36 @@ class PatientAdminService:
             organization_id, patient_id, upcoming_only=False, limit=10,
         )
         recent_payments = self.payments.list_by_patient(organization_id, patient_id, limit=5)
-        pending_claims = self.claims.list_by_patient(
-            organization_id, patient_id, open_only=True, limit=10,
+        pending_payment_rows = self.payments.list_pending_by_patient(
+            organization_id, patient_id,
+        )
+        open_claim_rows = self.claims.list_open_by_patient_with_insurance(
+            organization_id, patient_id,
         )
 
-        timeline = self._build_timeline(recent_appts, recent_payments, pending_claims)
+        pending_private_payments = [
+            PatientPendingPayment(
+                payment_id=payment.id,
+                appointment_id=payment.appointment_id,
+                amount=payment.amount,
+                appointment_start_at=appointment.start_at if appointment else None,
+                professional_name=professional_name,
+                created_at=payment.created_at,
+            )
+            for payment, appointment, professional_name in pending_payment_rows
+        ]
+        pending_claims = [
+            PatientOpenClaim(
+                **InsuranceClaimResponse.model_validate(claim).model_dump(),
+                health_insurance_name=insurance.name,
+            )
+            for claim, insurance in open_claim_rows
+        ]
+        timeline = self._build_timeline(
+            recent_appts,
+            recent_payments,
+            [claim for claim, _insurance in open_claim_rows],
+        )
 
         return PatientAdminSummary(
             patient_id=patient_id,
@@ -68,7 +98,8 @@ class PatientAdminService:
             upcoming_appointments=[AppointmentResponse.model_validate(a) for a in upcoming],
             recent_appointments=[AppointmentResponse.model_validate(a) for a in recent_appts],
             recent_payments=[PaymentResponse.model_validate(p) for p in recent_payments],
-            pending_claims=[InsuranceClaimResponse.model_validate(c) for c in pending_claims],
+            pending_private_payments=pending_private_payments,
+            pending_claims=pending_claims,
             timeline=timeline,
         )
 

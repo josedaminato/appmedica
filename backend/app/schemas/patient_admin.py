@@ -20,6 +20,19 @@ class TimelineEvent(BaseModel):
     occurred_at: datetime
 
 
+class PatientPendingPayment(BaseModel):
+    payment_id: uuid.UUID
+    appointment_id: uuid.UUID | None
+    amount: Decimal
+    appointment_start_at: datetime | None = None
+    professional_name: str | None = None
+    created_at: datetime
+
+
+class PatientOpenClaim(InsuranceClaimResponse):
+    health_insurance_name: str
+
+
 class PatientAdminSummary(BaseModel):
     patient_id: uuid.UUID
     private_debt: Decimal
@@ -30,5 +43,6 @@ class PatientAdminSummary(BaseModel):
     upcoming_appointments: list[AppointmentResponse]
     recent_appointments: list[AppointmentResponse]
     recent_payments: list[PaymentResponse]
-    pending_claims: list[InsuranceClaimResponse]
+    pending_private_payments: list[PatientPendingPayment]
+    pending_claims: list[PatientOpenClaim]
     timeline: list[TimelineEvent]

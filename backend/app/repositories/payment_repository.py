@@ -3,8 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
+from app.models.appointment import Appointment
 from app.models.enums import PaymentStatus
 from app.models.patient import Patient
 from app.models.payment import Payment
@@ -47,11 +48,44 @@ class PaymentRepository(BaseRepository[Payment]):
 
     def sum_patient_debt(self, organization_id: uuid.UUID, patient_id: uuid.UUID) -> Decimal:
         stmt = select(func.coalesce(func.sum(Payment.amount), 0)).where(
+            *self._patient_pending_debt_filters(organization_id, patient_id),
+        )
+        return Decimal(str(self.db.scalar(stmt) or 0))
+
+    def _patient_pending_debt_filters(self, organization_id: uuid.UUID, patient_id: uuid.UUID):
+        return (
             Payment.organization_id == organization_id,
             Payment.patient_id == patient_id,
             Payment.status == PaymentStatus.PENDING,
         )
-        return Decimal(str(self.db.scalar(stmt) or 0))
+
+    def list_pending_by_patient(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID,
+    ) -> list[tuple[Payment, Appointment | None, str | None]]:
+        """Mismos filtros que sum_patient_debt: pending del paciente en la org."""
+        professional = aliased(User)
+        stmt = (
+            select(Payment, Appointment, professional.full_name)
+            .outerjoin(
+                Appointment,
+                (Payment.appointment_id == Appointment.id)
+                & (Appointment.organization_id == organization_id),
+            )
+            .outerjoin(
+                professional,
+                professional.id == func.coalesce(
+                    Appointment.professional_id, Payment.professional_id,
+                ),
+            )
+            .where(*self._patient_pending_debt_filters(organization_id, patient_id))
+            .order_by(Appointment.start_at.asc(), Payment.created_at.asc())
+        )
+        return [
+            (payment, appointment, prof_name)
+            for payment, appointment, prof_name in self.db.execute(stmt).all()
+        ]
 
     def count_patients_with_debt(self, organization_id: uuid.UUID) -> int:
         stmt = select(func.count(func.distinct(Payment.patient_id))).where(

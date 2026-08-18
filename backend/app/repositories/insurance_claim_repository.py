@@ -47,7 +47,7 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
     def sum_insurance_debt(self, organization_id: uuid.UUID) -> Decimal:
         stmt = select(func.coalesce(func.sum(InsuranceClaim.expected_amount), 0)).where(
             InsuranceClaim.organization_id == organization_id,
-            InsuranceClaim.status.in_([InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED]),
+            InsuranceClaim.status.in_(self._open_claim_statuses()),
         )
         return Decimal(str(self.db.scalar(stmt) or 0))
 
@@ -55,14 +55,14 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         stmt = select(func.coalesce(func.sum(InsuranceClaim.expected_amount), 0)).where(
             InsuranceClaim.organization_id == organization_id,
             InsuranceClaim.patient_id == patient_id,
-            InsuranceClaim.status.in_([InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED]),
+            InsuranceClaim.status.in_(self._open_claim_statuses()),
         )
         return Decimal(str(self.db.scalar(stmt) or 0))
 
     def count_pending(self, organization_id: uuid.UUID) -> int:
         stmt = select(func.count()).select_from(InsuranceClaim).where(
             InsuranceClaim.organization_id == organization_id,
-            InsuranceClaim.status.in_([InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED]),
+            InsuranceClaim.status.in_(self._open_claim_statuses()),
         )
         return self.db.scalar(stmt) or 0
 
@@ -161,6 +161,9 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         )
         return self.db.scalar(stmt) or 0
 
+    def _open_claim_statuses(self) -> list[InsuranceClaimStatus]:
+        return [InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED]
+
     def list_by_patient(
         self,
         organization_id: uuid.UUID,
@@ -174,13 +177,27 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
             InsuranceClaim.patient_id == patient_id,
         )
         if open_only:
-            stmt = stmt.where(
-                InsuranceClaim.status.in_(
-                    [InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED],
-                ),
-            )
+            stmt = stmt.where(InsuranceClaim.status.in_(self._open_claim_statuses()))
         stmt = stmt.order_by(InsuranceClaim.service_date.desc()).limit(limit)
         return list(self.db.scalars(stmt).all())
+
+    def list_open_by_patient_with_insurance(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID,
+    ) -> list[tuple[InsuranceClaim, HealthInsurance]]:
+        """Mismos filtros que sum_patient_insurance_debt, con nombre de OS. Sin tope."""
+        stmt = (
+            select(InsuranceClaim, HealthInsurance)
+            .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
+            .where(
+                InsuranceClaim.organization_id == organization_id,
+                InsuranceClaim.patient_id == patient_id,
+                InsuranceClaim.status.in_(self._open_claim_statuses()),
+            )
+            .order_by(InsuranceClaim.service_date.desc(), InsuranceClaim.created_at.desc())
+        )
+        return [(claim, insurance) for claim, insurance in self.db.execute(stmt).all()]
 
     def create(self, claim: InsuranceClaim) -> InsuranceClaim:
         self.db.add(claim)

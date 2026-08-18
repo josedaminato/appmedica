@@ -1,7 +1,7 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react"
+import { ArrowLeft, ExternalLink, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { AppointmentStatusBadge, ClosureStatusBadge } from "@/components/shared/StatusBadge"
 import { formatDate, formatMoney, formatTime } from "@/lib/format"
+import type { InsuranceClaim, PatientPendingPayment } from "@/types/api"
 import { ApiError } from "@/lib/api-client"
 import { useRoleScope } from "@/hooks/use-role-scope"
 import { PatientFormDialog } from "../components/PatientFormDialog"
@@ -90,6 +91,35 @@ export function PatientDetailPage() {
           <SummaryCard label="Deuda obra social" value={formatMoney(admin.insurance_debt)} alert={Number(admin.insurance_debt) > 0} />
           <SummaryCard label="Ausencias totales" value={String(admin.no_show_count)} />
           <SummaryCard label="Ausencias (30 d)" value={String(admin.no_shows_last_30_days)} />
+        </div>
+      )}
+
+      {admin && (
+        <div className="grid gap-6 lg:grid-cols-2 mb-6">
+          <DebtCard
+            title="Deuda particular"
+            total={admin.private_debt}
+            href="/payments?tab=private"
+            linkLabel="Ver en Pagos"
+            emptyText="No hay pagos particulares pendientes."
+            isEmpty={(admin.pending_private_payments ?? []).length === 0}
+          >
+            {(admin.pending_private_payments ?? []).map((item) => (
+              <PrivateDebtRow key={item.payment_id} item={item} />
+            ))}
+          </DebtCard>
+          <DebtCard
+            title="Deuda obra social"
+            total={admin.insurance_debt}
+            href="/insurances?tab=claims"
+            linkLabel="Ver en Obras sociales"
+            emptyText="No hay reclamos abiertos."
+            isEmpty={(admin.pending_claims ?? []).length === 0}
+          >
+            {(admin.pending_claims ?? []).map((claim) => (
+              <InsuranceDebtRow key={claim.id} claim={claim} />
+            ))}
+          </DebtCard>
         </div>
       )}
 
@@ -226,5 +256,88 @@ function Info({ label, value, className }: { label: string; value: string | null
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="font-medium">{value || "—"}</p>
     </div>
+  )
+}
+
+function DebtCard({
+  title,
+  total,
+  href,
+  linkLabel,
+  emptyText,
+  isEmpty,
+  children,
+}: {
+  title: string
+  total: string
+  href: string
+  linkLabel: string
+  emptyText: string
+  isEmpty: boolean
+  children: ReactNode
+}) {
+  return (
+    <Card className={Number(total) > 0 ? "border-destructive/40" : undefined}>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
+        <div>
+          <CardTitle className="text-base">{title}</CardTitle>
+          <p className="text-xl font-bold tabular-nums mt-1">{formatMoney(total)}</p>
+        </div>
+        <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Link to={href}>
+            {linkLabel}
+            <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+          </Link>
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isEmpty ? (
+          <p className="text-sm text-muted-foreground">{emptyText}</p>
+        ) : (
+          <ul className="space-y-2 text-sm">{children}</ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function PrivateDebtRow({ item }: { item: PatientPendingPayment }) {
+  const when = item.appointment_start_at
+    ? formatDate(item.appointment_start_at)
+    : "Sin turno asociado"
+  return (
+    <li className="flex justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+      <div className="min-w-0">
+        <p className="font-medium">{when}</p>
+        <p className="text-xs text-muted-foreground">
+          {item.professional_name ?? "Profesional no asignado"}
+          {item.appointment_id ? " · Turno particular" : " · Pago pendiente"}
+        </p>
+      </div>
+      <span className="font-medium tabular-nums shrink-0">{formatMoney(item.amount)}</span>
+    </li>
+  )
+}
+
+const OPEN_CLAIM_LABELS: Record<"pending" | "invoiced", string> = {
+  pending: "Pendiente de facturar",
+  invoiced: "Facturada / pendiente de cobro",
+}
+
+function InsuranceDebtRow({ claim }: { claim: InsuranceClaim }) {
+  const statusLabel =
+    claim.status === "pending" || claim.status === "invoiced"
+      ? OPEN_CLAIM_LABELS[claim.status]
+      : claim.status
+  return (
+    <li className="flex justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+      <div className="min-w-0">
+        <p className="font-medium">{claim.health_insurance_name || "Obra social"}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatDate(claim.service_date)} · {statusLabel}
+        </p>
+      </div>
+      <span className="font-medium tabular-nums shrink-0">{formatMoney(claim.expected_amount)}</span>
+    </li>
   )
 }

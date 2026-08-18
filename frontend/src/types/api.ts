@@ -165,6 +165,15 @@ export interface TimelineEvent {
   occurred_at: string
 }
 
+export interface PatientPendingPayment {
+  payment_id: string
+  appointment_id: string | null
+  amount: string
+  appointment_start_at: string | null
+  professional_name: string | null
+  created_at: string
+}
+
 export interface PatientAdminSummary {
   patient_id: string
   private_debt: string
@@ -175,6 +184,7 @@ export interface PatientAdminSummary {
   upcoming_appointments: Appointment[]
   recent_appointments: Appointment[]
   recent_payments: Payment[]
+  pending_private_payments: PatientPendingPayment[]
   pending_claims: InsuranceClaim[]
   timeline: TimelineEvent[]
 }
