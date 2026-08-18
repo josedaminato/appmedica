@@ -7,6 +7,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from email_validator import EmailNotValidError, validate_email
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request
@@ -38,6 +39,10 @@ TARGET_FIELDS = [
 ]
 
 MIN_DNI_LENGTH = 7
+NAME_MAX_LEN = 120
+DNI_MAX_LEN = 20
+PHONE_MAX_LEN = 30
+AFFILIATE_MAX_LEN = 50
 
 
 class PatientImportService:
@@ -202,6 +207,10 @@ class PatientImportService:
 
         first_name, last_name, name_warnings = self._resolve_name(raw, mapping)
         warnings.extend(name_warnings)
+        first_name, last_name, overflow_notes, name_fit_warnings = self._fit_names_for_import(
+            first_name, last_name
+        )
+        warnings.extend(name_fit_warnings)
 
         if not first_name and not last_name:
             errors.append("Falta nombre del paciente")
@@ -216,6 +225,9 @@ class PatientImportService:
                 warnings.append("DNI inválido o incompleto; se importará sin documento")
 
         phone = self._normalize_phone(self._get_cell(raw, mapping.phone))
+        if phone and len(phone) > PHONE_MAX_LEN:
+            warnings.append("Teléfono demasiado largo; se recortó")
+            phone = phone[:PHONE_MAX_LEN]
         email_raw = self._get_cell(raw, mapping.email)
         email: str | None = None
         if email_raw:
@@ -236,7 +248,13 @@ class PatientImportService:
         warnings.extend(insurance_warnings)
 
         affiliate = self._get_cell(raw, mapping.affiliate_number) or None
-        notes = self._get_cell(raw, mapping.notes) or None
+        if affiliate and len(affiliate) > AFFILIATE_MAX_LEN:
+            warnings.append("Número de afiliado demasiado largo; se recortó")
+            affiliate = affiliate[:AFFILIATE_MAX_LEN]
+        notes = self._merge_notes(self._get_cell(raw, mapping.notes) or None, *overflow_notes)
+        if dni and len(dni) > DNI_MAX_LEN:
+            warnings.append("DNI demasiado largo; se importará sin documento")
+            dni = None
 
         if errors:
             return PatientImportPreviewRow(
@@ -247,17 +265,29 @@ class PatientImportService:
             )
 
         assert first_name and last_name
-        payload = PatientImportRowPayload(
-            first_name=first_name,
-            last_name=last_name,
-            dni=dni,
-            phone=phone,
-            email=email,
-            birth_date=birth_date.isoformat() if birth_date else None,
-            health_insurance_id=str(insurance_id) if insurance_id else None,
-            affiliate_number=affiliate,
-            notes=notes,
-        )
+        try:
+            payload = PatientImportRowPayload(
+                first_name=first_name,
+                last_name=last_name,
+                dni=dni,
+                phone=phone,
+                email=email,
+                birth_date=birth_date.isoformat() if birth_date else None,
+                health_insurance_id=str(insurance_id) if insurance_id else None,
+                affiliate_number=affiliate,
+                notes=notes,
+            )
+        except ValidationError as exc:
+            detail = "; ".join(
+                f"{'.'.join(str(part) for part in err.get('loc', ()))}: {err.get('msg', 'dato inválido')}"
+                for err in exc.errors()
+            )
+            return PatientImportPreviewRow(
+                row_number=row_number,
+                status="error",
+                errors=[detail or "Fila con datos inválidos"],
+                warnings=warnings,
+            )
 
         if dni:
             if dni in seen_dnis_in_file:
@@ -305,6 +335,78 @@ class PatientImportService:
         if last and not first:
             return last, last, ["Nombre inferido del apellido"]
         return None, None, warnings
+
+    @staticmethod
+    def _looks_like_prose(value: str) -> bool:
+        text = value.strip()
+        if len(text) > NAME_MAX_LEN:
+            return True
+        lowered = text.lower()
+        if len(text) > 50 and any(
+            hint in lowered
+            for hint in (
+                "el monto",
+                "factura",
+                "comunicarse",
+                "whatsapp",
+                "consulta comunicarse",
+            )
+        ):
+            return True
+        if len(text) > 80 and ". " in text:
+            return True
+        return False
+
+    @staticmethod
+    def _clip_name(value: str) -> str:
+        if len(value) <= NAME_MAX_LEN:
+            return value
+        clipped = value[:NAME_MAX_LEN].rsplit(" ", 1)[0].strip()
+        return clipped or value[:NAME_MAX_LEN]
+
+    @staticmethod
+    def _merge_notes(*parts: str | None) -> str | None:
+        unique: list[str] = []
+        for part in parts:
+            text = (part or "").strip()
+            if text and text not in unique:
+                unique.append(text)
+        return "\n\n".join(unique) if unique else None
+
+    def _fit_names_for_import(
+        self, first_name: str | None, last_name: str | None
+    ) -> tuple[str | None, str | None, list[str], list[str]]:
+        """Textos largos (notas, leyendas, montos) van a Notas; la fila sigue siendo importable."""
+        overflow: list[str] = []
+        warnings: list[str] = []
+        first = first_name.strip() if first_name else None
+        last = last_name.strip() if last_name else None
+
+        if first and self._looks_like_prose(first):
+            overflow.append(first)
+            if last and last != first and not self._looks_like_prose(last):
+                first = last
+                warnings.append("El texto largo de Nombre se guardó en Notas")
+            else:
+                first = self._clip_name(first)
+                warnings.append("Nombre recortado; el texto completo se guardó en Notas")
+
+        if last and self._looks_like_prose(last):
+            if last not in overflow:
+                overflow.append(last)
+            if first and first != last and not self._looks_like_prose(first):
+                last = first
+                warnings.append("El texto largo de Apellido se guardó en Notas")
+            else:
+                last = self._clip_name(last)
+                if "Apellido recortado" not in " ".join(warnings):
+                    warnings.append("Apellido recortado; el texto completo se guardó en Notas")
+
+        if first:
+            first = self._clip_name(first)
+        if last:
+            last = self._clip_name(last)
+        return first, last, overflow, warnings
 
     def _match_insurance(
         self, name: str | None, insurances: list

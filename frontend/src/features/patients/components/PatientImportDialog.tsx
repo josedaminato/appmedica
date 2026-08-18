@@ -244,6 +244,11 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
               {preview.summary.error > 0 && (
                 <Badge variant="destructive">{preview.summary.error} con error</Badge>
               )}
+              {preview.rows.some((r) => r.warnings.length > 0) && (
+                <Badge variant="secondary">
+                  {preview.rows.filter((r) => r.warnings.length > 0).length} con avisos
+                </Badge>
+              )}
             </div>
 
             {!mappingOk && (
@@ -263,6 +268,12 @@ export function PatientImportDialog({ open, onOpenChange, onSuccess }: Props) {
                 </>
               )}
             </p>
+            {preview.rows.some((r) => r.warnings.length > 0) && (
+              <p className="text-xs text-muted-foreground">
+                Textos largos (notas, montos, leyendas) se guardan en <strong>Notas</strong> y la
+                fila igual se importa. Si el mapeo está mal, ajustá las columnas abajo.
+              </p>
+            )}
 
             <button
               type="button"

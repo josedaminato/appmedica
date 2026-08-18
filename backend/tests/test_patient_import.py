@@ -126,6 +126,54 @@ def test_commit_without_dni(db_session):
     assert patient.dni is None
 
 
+def test_preview_long_text_in_name_goes_to_notes(db_session):
+    org = _seed_org(db_session)
+    svc = PatientImportService(db_session)
+    long_text = (
+        "El monto total que aparece en la factura no incluye IVA. "
+        "Para cualquier consulta comunicarse por WhatsApp o telefono."
+    )
+    long_text = (long_text + " " + long_text).strip()
+    assert len(long_text) > 120
+    preview = svc.preview_from_rows(
+        org.id,
+        ["Nombre", "Apellido"],
+        [
+            {"Nombre": long_text, "Apellido": "Pérez"},
+            {"Nombre": "Ana", "Apellido": "García"},
+        ],
+        None,
+    )
+    assert preview.summary["total"] == 2
+    assert preview.summary["error"] == 0
+    assert preview.summary["valid"] == 2
+    row = preview.rows[0]
+    assert row.status == "valid"
+    assert row.data is not None
+    assert row.data.last_name == "Pérez"
+    assert row.data.first_name == "Pérez"
+    assert len(row.data.first_name) <= 120
+    assert row.data.notes is not None
+    assert "monto total" in row.data.notes.lower()
+    assert preview.rows[1].data is not None
+    assert preview.rows[1].data.first_name == "Ana"
+
+    result = svc.commit(org.id, PatientImportCommitRequest(rows=[row.data]))
+    assert result.created == 1
+    patient = db_session.query(Patient).one()
+    assert patient.last_name == "Pérez"
+    assert patient.notes is not None
+    assert "monto total" in patient.notes.lower()
+
+
+def test_detect_notes_column_not_first_name():
+    mapping = detect_column_mapping(["Nombre", "Apellido", "Detalle", "DNI"])
+    assert mapping["first_name"] == "Nombre"
+    assert mapping["last_name"] == "Apellido"
+    assert mapping["notes"] == "Detalle"
+    assert mapping["dni"] == "DNI"
+
+
 def test_in_file_duplicate_dni_marked(db_session):
     org = _seed_org(db_session)
     svc = PatientImportService(db_session)

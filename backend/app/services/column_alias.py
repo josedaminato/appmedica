@@ -9,6 +9,7 @@ import unicodedata
 # (p. ej. "Nombre y apellido" → nombre completo, no nombre).
 MATCH_ORDER: tuple[str, ...] = (
     "full_name",
+    "notes",
     "first_name",
     "last_name",
     "dni",
@@ -17,7 +18,6 @@ MATCH_ORDER: tuple[str, ...] = (
     "birth_date",
     "health_insurance_name",
     "affiliate_number",
-    "notes",
 )
 
 COLUMN_ALIASES: dict[str, list[str]] = {
@@ -122,6 +122,18 @@ COLUMN_ALIASES: dict[str, list[str]] = {
         "comentarios",
         "notes",
         "obs",
+        "detalle",
+        "detalles",
+        "descripcion",
+        "descripción",
+        "concepto",
+        "mensaje",
+        "comentario",
+        "leyenda",
+        "aclaracion",
+        "aclaración",
+        "texto",
+        "motivo",
     ],
 }
 
@@ -137,9 +149,28 @@ def normalize_column_name(value: str) -> str:
     return text
 
 
+# Aliases cortos: solo coincidencia exacta (evita que "nombre" capture "nombre del concepto").
+EXACT_ONLY_ALIASES = frozenset(
+    {
+        "nombre",
+        "nombres",
+        "name",
+        "os",
+        "doc",
+        "tel",
+        "cel",
+        "mail",
+        "obs",
+        "texto",
+    }
+)
+
+
 def _alias_matches_column(norm_alias: str, norm_col: str) -> bool:
     if norm_col == norm_alias:
         return True
+    if norm_alias in EXACT_ONLY_ALIASES:
+        return False
     if norm_col.startswith(f"{norm_alias} ") or norm_col.endswith(f" {norm_alias}"):
         return True
     if f" {norm_alias} " in f" {norm_col} ":
