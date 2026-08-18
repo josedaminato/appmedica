@@ -5,7 +5,6 @@ import {
   AlertCircle,
   Calendar,
   ChevronDown,
-  ClipboardList,
   CreditCard,
   Plus,
   Shield,
@@ -21,6 +20,7 @@ import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { listHealthInsurances } from "@/features/insurances/api"
 import { listPatients } from "@/features/patients/api"
 import { OnboardingChecklist } from "./components/OnboardingChecklist"
+import { PendingTasks } from "./components/PendingTasks"
 import { AppointmentStatusBadge, AttentionTypeBadge } from "@/components/shared/StatusBadge"
 import { formatMoney, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -106,7 +106,9 @@ export function DashboardPage() {
         ]}
       />
 
-      {/* HOY — lo que necesitás resolver en el día */}
+      <PendingTasks summary={d} alerts={alerts} />
+
+      {/* HOY — contexto de agenda */}
       <SectionTitle>Hoy</SectionTitle>
       <div className="grid gap-4 sm:grid-cols-3 mb-4">
         <MetricCard
@@ -114,21 +116,6 @@ export function DashboardPage() {
           value={String(d.appointments_today)}
           icon={Calendar}
           href="/agenda"
-        />
-        <MetricCard
-          title="Sin cerrar"
-          value={String(d.unclosed_attended)}
-          icon={ClipboardList}
-          highlight={d.unclosed_attended > 0}
-          href="/agenda?status=attended&closure=none"
-          subtitle="Asistieron, falta el cierre"
-        />
-        <MetricCard
-          title="Vencidos sin resolver"
-          value={String(d.overdue_unresolved)}
-          icon={AlertCircle}
-          highlight={d.overdue_unresolved > 0}
-          href="/agenda?status=pending"
         />
       </div>
 
@@ -270,7 +257,7 @@ export function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Reclamos de obras sociales viejos</CardTitle>
-                <Link to="/insurances" className="text-sm text-primary hover:underline">
+                <Link to="/insurances?tab=claims" className="text-sm text-primary hover:underline">
                   Ver reclamos
                 </Link>
               </CardHeader>

@@ -27,6 +27,7 @@ class OldInsuranceClaimsByInsurance(BaseModel):
 
 class OldInsuranceClaimsAlert(BaseModel):
     threshold_days: int
+    total_count: int = 0
     items: list[OldInsuranceClaimsByInsurance]
 
 

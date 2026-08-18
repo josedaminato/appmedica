@@ -9,6 +9,7 @@ class DashboardSummary(BaseModel):
     appointments_today: int
     unclosed_attended: int
     overdue_unresolved: int
+    upcoming_unconfirmed: int
     private_debt_total: Decimal
     insurance_debt_total: Decimal
     patients_with_debt: int

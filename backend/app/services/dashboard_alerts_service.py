@@ -54,7 +54,7 @@ class DashboardAlertsService:
         overdue_count = self.appointments.count_overdue_unresolved(organization_id, now)
 
         partial_count, partial_pending_total = self._partial_payments_alert(organization_id)
-        old_claims = self._old_claims_by_insurance(
+        old_claims, old_claims_total = self._old_claims_by_insurance(
             organization_id,
             threshold_days=claims_old_days,
         )
@@ -72,6 +72,7 @@ class DashboardAlertsService:
             ),
             old_insurance_claims=OldInsuranceClaimsAlert(
                 threshold_days=claims_old_days,
+                total_count=old_claims_total,
                 items=old_claims,
             ),
             top_debt_patients=TopDebtPatientsAlert(items=top_patients),
@@ -108,7 +109,7 @@ class DashboardAlertsService:
         organization_id: uuid.UUID,
         *,
         threshold_days: int,
-    ) -> list[OldInsuranceClaimsByInsurance]:
+    ) -> tuple[list[OldInsuranceClaimsByInsurance], int]:
         cutoff = date.today() - timedelta(days=threshold_days)
         # group by insurance, count + sum + avg days pending
         # avg days pending computed in python (portable)
@@ -145,7 +146,8 @@ class DashboardAlertsService:
             )
 
         items.sort(key=lambda x: (x.debt_total, x.claims_count), reverse=True)
-        return items[:6]
+        total_count = sum(item.claims_count for item in items)
+        return items[:6], total_count
 
     def _top_debt_patients(
         self,

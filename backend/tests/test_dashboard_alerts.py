@@ -170,6 +170,37 @@ def test_old_insurance_claims(db_session: Session):
     assert item.claims_count >= 1
     assert item.debt_total > 0
     assert item.avg_days_pending >= 45
+    assert alerts.old_insurance_claims.total_count >= item.claims_count
+
+
+def test_old_insurance_claims_total_count_includes_beyond_top_six(db_session: Session):
+    org, _, patient = _seed_alerts_data(db_session)
+    old_service_date = date.today() - timedelta(days=60)
+    extra = []
+    for i in range(7):
+        insurance = HealthInsurance(
+            id=uuid4(),
+            organization_id=org.id,
+            name=f"OS Extra {i}",
+        )
+        extra.append(insurance)
+        extra.append(
+            InsuranceClaim(
+                id=uuid4(),
+                organization_id=org.id,
+                patient_id=patient.id,
+                health_insurance_id=insurance.id,
+                expected_amount=Decimal("1000"),
+                service_date=old_service_date,
+                status=InsuranceClaimStatus.PENDING,
+            )
+        )
+    db_session.add_all(extra)
+    db_session.commit()
+
+    alerts = DashboardAlertsService(db_session).get_alerts(org.id, claims_old_days=45)
+    assert len(alerts.old_insurance_claims.items) == 6
+    assert alerts.old_insurance_claims.total_count == 8
 
 
 def test_partial_payments_pending(db_session: Session):
@@ -212,3 +243,4 @@ def test_dashboard_alerts_endpoint_returns_200(api_client):
     assert body["partial_payments_pending"]["pending_total"]
     assert "unclosed_attended" in body
     assert "overdue_unresolved" in body
+    assert body["old_insurance_claims"]["total_count"] >= 1

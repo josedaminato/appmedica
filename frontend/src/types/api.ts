@@ -120,6 +120,7 @@ export interface DashboardSummary {
   appointments_today: number
   unclosed_attended: number
   overdue_unresolved: number
+  upcoming_unconfirmed: number
   private_debt_total: string
   insurance_debt_total: string
   patients_with_debt: number
@@ -134,6 +135,7 @@ export interface DashboardAlerts {
   partial_payments_pending: { count: number; pending_total: string }
   old_insurance_claims: {
     threshold_days: number
+    total_count: number
     items: {
       health_insurance_id: string
       name: string

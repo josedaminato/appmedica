@@ -35,6 +35,7 @@ class DashboardService:
             ),
             unclosed_attended=self.appointments.count_unclosed_attended(organization_id),
             overdue_unresolved=self.appointments.count_overdue_unresolved(organization_id, now),
+            upcoming_unconfirmed=self.appointments.count_upcoming_pending(organization_id, now),
             private_debt_total=self.payments.sum_private_debt(organization_id),
             insurance_debt_total=self.claims.sum_insurance_debt(organization_id),
             patients_with_debt=self.payments.count_patients_with_debt(organization_id),

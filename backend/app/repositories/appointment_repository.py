@@ -243,6 +243,18 @@ class AppointmentRepository(BaseRepository[Appointment]):
             stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
+    def count_upcoming_pending(
+        self,
+        organization_id: uuid.UUID,
+        now: datetime,
+    ) -> int:
+        stmt = select(func.count()).select_from(Appointment).where(
+            Appointment.organization_id == organization_id,
+            Appointment.start_at >= now,
+            Appointment.status == AppointmentStatus.PENDING,
+        )
+        return self.db.scalar(stmt) or 0
+
     def list_upcoming(self, organization_id: uuid.UUID, now: datetime, limit: int = 5) -> list[Appointment]:
         stmt = self._with_relations(
             select(Appointment)
