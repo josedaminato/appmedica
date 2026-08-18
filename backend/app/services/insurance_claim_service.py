@@ -4,7 +4,8 @@ from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
-from app.models.enums import InsuranceClaimStatus
+from app.models.enums import AppointmentClosureStatus, InsuranceClaimStatus
+from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
 from app.schemas.common import PaginatedResponse, pagination_meta
 from app.schemas.insurance_claim import (
@@ -18,6 +19,7 @@ class InsuranceClaimService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = InsuranceClaimRepository(db)
+        self.appointments = AppointmentRepository(db)
 
     def list_claims(
         self,
@@ -63,6 +65,7 @@ class InsuranceClaimService:
         claim, patient, insurance = self._get_row(organization_id, claim_id)
         updates = data.model_dump(exclude_unset=True)
         now = datetime.now(timezone.utc)
+        previous_status = claim.status
 
         new_status = updates.get("status")
         if new_status == InsuranceClaimStatus.INVOICED:
@@ -83,16 +86,48 @@ class InsuranceClaimService:
             if claim.status == InsuranceClaimStatus.PENDING:
                 updates["status"] = InsuranceClaimStatus.INVOICED
 
-        for field, value in updates.items():
-            setattr(claim, field, value)
+        try:
+            for field, value in updates.items():
+                setattr(claim, field, value)
 
-        if claim.status == InsuranceClaimStatus.COLLECTED and claim.collected_at is None:
-            claim.collected_at = now
+            if claim.status == InsuranceClaimStatus.COLLECTED and claim.collected_at is None:
+                claim.collected_at = now
 
-        self.repo.update(claim)
-        self.db.commit()
+            self.repo.update(claim)
+
+            became_collected = (
+                claim.status == InsuranceClaimStatus.COLLECTED
+                and previous_status != InsuranceClaimStatus.COLLECTED
+            )
+            if became_collected:
+                self._sync_appointment_paid_on_collected(
+                    organization_id,
+                    claim.appointment_id,
+                )
+
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(claim)
         return self._to_list_item(claim, patient, insurance, date.today())
+
+    def _sync_appointment_paid_on_collected(
+        self,
+        organization_id: uuid.UUID,
+        appointment_id: uuid.UUID | None,
+    ) -> None:
+        """Marca el turno OS como cobrado. No crea Payment ni toca otros campos."""
+        if appointment_id is None:
+            return
+        appointment = self.appointments.get_by_id_for_update(organization_id, appointment_id)
+        if appointment is None:
+            return
+        if appointment.closure_status != AppointmentClosureStatus.INSURANCE_PENDING:
+            return
+        appointment.closure_status = AppointmentClosureStatus.PAID
+        self.appointments.update(appointment)
 
     def _get_row(self, organization_id: uuid.UUID, claim_id: uuid.UUID) -> tuple:
         row = self.repo.get_with_details(organization_id, claim_id)
