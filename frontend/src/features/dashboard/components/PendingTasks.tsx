@@ -48,8 +48,8 @@ export function PendingTasks({ summary, alerts }: Props) {
     },
     oldClaimsTotal > 0 && {
       id: "old-claims",
-      text: `Tenés ${oldClaimsTotal} ${plural(oldClaimsTotal, "reclamo", "reclamos")} con más de ${oldDays} días.`,
-      href: "/insurances?tab=claims",
+      text: `Tenés ${oldClaimsTotal} ${plural(oldClaimsTotal, "reclamo", "reclamos")} con ${oldDays} días o más.`,
+      href: `/insurances?tab=claims&min_days=${oldDays}`,
       cta: "Ver reclamos",
     },
   ].filter(Boolean) as { id: string; text: string; href: string; cta: string }[]

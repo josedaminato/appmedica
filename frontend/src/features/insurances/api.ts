@@ -34,6 +34,7 @@ export function listInsuranceClaims(params: {
   status?: InsuranceClaimStatus
   health_insurance_id?: string
   open_only?: boolean
+  min_days?: 45 | 60 | 90
 }) {
   const search = new URLSearchParams()
   if (params.page) search.set("page", String(params.page))
@@ -41,6 +42,7 @@ export function listInsuranceClaims(params: {
   if (params.status) search.set("status", params.status)
   if (params.health_insurance_id) search.set("health_insurance_id", params.health_insurance_id)
   if (params.open_only) search.set("open_only", "true")
+  if (params.min_days) search.set("min_days", String(params.min_days))
   const qs = search.toString()
   return apiRequest<PaginatedResponse<InsuranceClaim>>(`/insurance-claims${qs ? `?${qs}` : ""}`)
 }

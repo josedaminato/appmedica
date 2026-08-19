@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -75,6 +75,7 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         status: InsuranceClaimStatus | None = None,
         health_insurance_id: uuid.UUID | None = None,
         open_only: bool = False,
+        min_days: int | None = None,
     ) -> tuple[list[tuple[InsuranceClaim, Patient, HealthInsurance]], int]:
         base = (
             select(InsuranceClaim, Patient, HealthInsurance)
@@ -82,13 +83,19 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
             .where(InsuranceClaim.organization_id == organization_id)
         )
-        if status is not None:
+        if min_days is not None:
+            cutoff = date.today() - timedelta(days=min_days)
+            base = base.where(
+                InsuranceClaim.status.in_(self._open_claim_statuses()),
+                InsuranceClaim.service_date <= cutoff,
+            )
+            if status is not None:
+                base = base.where(InsuranceClaim.status == status)
+        elif status is not None:
             base = base.where(InsuranceClaim.status == status)
         elif open_only:
             base = base.where(
-                InsuranceClaim.status.in_(
-                    [InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED],
-                ),
+                InsuranceClaim.status.in_(self._open_claim_statuses()),
             )
         if health_insurance_id is not None:
             base = base.where(InsuranceClaim.health_insurance_id == health_insurance_id)
@@ -96,8 +103,12 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         count_stmt = select(func.count()).select_from(base.subquery())
         total = self.db.scalar(count_stmt) or 0
 
+        if min_days is not None:
+            order = (InsuranceClaim.service_date.asc(), InsuranceClaim.created_at.asc())
+        else:
+            order = (InsuranceClaim.service_date.desc(), InsuranceClaim.created_at.desc())
         stmt = (
-            base.order_by(InsuranceClaim.service_date.desc(), InsuranceClaim.created_at.desc())
+            base.order_by(*order)
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

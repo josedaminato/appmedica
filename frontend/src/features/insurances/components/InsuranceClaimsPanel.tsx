@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect } from "react"
 import { CheckCircle2, FileCheck, XCircle } from "lucide-react"
@@ -21,12 +21,22 @@ import { ApiError, getErrorMessage } from "@/lib/api-client"
 import type { InsuranceClaimStatus } from "@/types/api"
 import * as api from "../api"
 
+type ClaimMinDays = 45 | 60 | 90
+const AGE_FILTERS: ClaimMinDays[] = [45, 60, 90]
+
+function parseMinDays(raw: string | null): ClaimMinDays | undefined {
+  if (raw === "45" || raw === "60" || raw === "90") return Number(raw) as ClaimMinDays
+  return undefined
+}
+
 type Props = {
   insurances: { id: string; name: string }[]
 }
 
 export function InsuranceClaimsPanel({ insurances }: Props) {
   const qc = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const minDays = parseMinDays(searchParams.get("min_days"))
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>("open")
   const [insuranceFilter, setInsuranceFilter] = useState<string>("all")
@@ -41,7 +51,7 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
       : undefined
 
   const { data, isLoading, isError, error: queryError, refetch } = useQuery({
-    queryKey: ["insurance-claims", page, statusFilter, insuranceFilter],
+    queryKey: ["insurance-claims", page, statusFilter, insuranceFilter, minDays],
     queryFn: () =>
       api.listInsuranceClaims({
         page,
@@ -49,8 +59,27 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
         status,
         open_only: openOnly,
         health_insurance_id: insuranceFilter === "all" ? undefined : insuranceFilter,
+        min_days: minDays,
       }),
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [minDays])
+
+  function setMinDays(next: ClaimMinDays | undefined) {
+    setPage(1)
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        params.set("tab", "claims")
+        if (next) params.set("min_days", String(next))
+        else params.delete("min_days")
+        return params
+      },
+      { replace: true },
+    )
+  }
 
   useEffect(() => {
     if (!success) return
@@ -79,6 +108,9 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Marcá cuándo facturaste y cuándo cobró la obra social. Así calculamos demoras y el ranking.
+        {minDays != null && (
+          <> Los filtros de antigüedad cubren pendientes y facturados con {minDays} días o más, del más antiguo al más nuevo.</>
+        )}
       </p>
 
       {success && <FeedbackBanner variant="success" message={success} />}
@@ -110,6 +142,27 @@ export function InsuranceClaimsPanel({ insurances }: Props) {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex flex-wrap gap-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={minDays == null ? "default" : "outline"}
+            onClick={() => setMinDays(undefined)}
+          >
+            Todas las fechas
+          </Button>
+          {AGE_FILTERS.map((days) => (
+            <Button
+              key={days}
+              type="button"
+              size="sm"
+              variant={minDays === days ? "default" : "outline"}
+              onClick={() => setMinDays(days)}
+            >
+              ≥ {days} d
+            </Button>
+          ))}
+        </div>
         </div>
         <Button
           variant="outline"

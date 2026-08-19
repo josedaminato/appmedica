@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -171,6 +171,38 @@ def test_old_insurance_claims(db_session: Session):
     assert item.debt_total > 0
     assert item.avg_days_pending >= 45
     assert alerts.old_insurance_claims.total_count >= item.claims_count
+
+
+def test_old_insurance_claims_includes_exact_threshold_days(db_session: Session):
+    org, _, patient = _seed_alerts_data(db_session)
+    insurance = db_session.scalars(
+        select(HealthInsurance).where(HealthInsurance.organization_id == org.id),
+    ).one()
+    exact = InsuranceClaim(
+        id=uuid4(),
+        organization_id=org.id,
+        patient_id=patient.id,
+        health_insurance_id=insurance.id,
+        expected_amount=Decimal("2000"),
+        service_date=date.today() - timedelta(days=45),
+        status=InsuranceClaimStatus.PENDING,
+    )
+    younger = InsuranceClaim(
+        id=uuid4(),
+        organization_id=org.id,
+        patient_id=patient.id,
+        health_insurance_id=insurance.id,
+        expected_amount=Decimal("2000"),
+        service_date=date.today() - timedelta(days=44),
+        status=InsuranceClaimStatus.PENDING,
+    )
+    db_session.add_all([exact, younger])
+    db_session.commit()
+
+    alerts = DashboardAlertsService(db_session).get_alerts(org.id, claims_old_days=45)
+    # seed ya trae un reclamo a 60 días; el de 45 entra y el de 44 no
+    assert alerts.old_insurance_claims.total_count == 2
+    assert alerts.old_insurance_claims.items[0].claims_count == 2
 
 
 def test_old_insurance_claims_total_count_includes_beyond_top_six(db_session: Session):

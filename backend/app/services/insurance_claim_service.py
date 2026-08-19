@@ -30,6 +30,7 @@ class InsuranceClaimService:
         status: InsuranceClaimStatus | None = None,
         health_insurance_id: uuid.UUID | None = None,
         open_only: bool = False,
+        min_days: int | None = None,
     ) -> PaginatedResponse[InsuranceClaimListItem]:
         rows, total = self.repo.list_paginated(
             organization_id,
@@ -38,6 +39,7 @@ class InsuranceClaimService:
             status=status,
             health_insurance_id=health_insurance_id,
             open_only=open_only,
+            min_days=min_days,
         )
         today = date.today()
         items = [

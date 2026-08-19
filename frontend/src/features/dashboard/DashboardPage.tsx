@@ -257,7 +257,10 @@ export function DashboardPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base">Reclamos de obras sociales viejos</CardTitle>
-                <Link to="/insurances?tab=claims" className="text-sm text-primary hover:underline">
+                <Link
+                  to={`/insurances?tab=claims&min_days=${alerts.old_insurance_claims.threshold_days}`}
+                  className="text-sm text-primary hover:underline"
+                >
                   Ver reclamos
                 </Link>
               </CardHeader>
@@ -276,7 +279,7 @@ export function DashboardPage() {
                         </p>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        &gt; {alerts.old_insurance_claims.threshold_days} días
+                        ≥ {alerts.old_insurance_claims.threshold_days} días
                       </span>
                     </li>
                   ))}
