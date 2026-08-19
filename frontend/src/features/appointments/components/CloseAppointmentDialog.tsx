@@ -13,6 +13,7 @@ import {
 import type { Appointment, AppointmentClosureStatus, HealthInsurance } from "@/types/api"
 import { InsuranceCatalogHint } from "@/features/insurances/components/InsuranceCatalogHint"
 import type { ClosePayload } from "../api"
+import { defaultClosureType } from "./defaultClosureType"
 
 interface CloseAppointmentDialogProps {
   open: boolean
@@ -31,7 +32,9 @@ export function CloseAppointmentDialog({
   onSubmit,
   loading,
 }: CloseAppointmentDialogProps) {
-  const [closureType, setClosureType] = useState<AppointmentClosureStatus>("paid")
+  const [closureType, setClosureType] = useState<AppointmentClosureStatus>(() =>
+    defaultClosureType(appointment?.attention_type),
+  )
   const [amount, setAmount] = useState("")
   const [paidAmount, setPaidAmount] = useState("")
   const [method, setMethod] = useState("cash")
@@ -41,7 +44,7 @@ export function CloseAppointmentDialog({
     const def = appointment?.expected_amount ?? ""
     setAmount(def ? String(def) : "")
     setPaidAmount("")
-    setClosureType("paid")
+    setClosureType(defaultClosureType(appointment?.attention_type))
     setMethod("cash")
     setInsuranceId(appointment?.health_insurance_id ?? "")
   }
