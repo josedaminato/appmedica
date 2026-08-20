@@ -222,6 +222,65 @@ def _os_close(client: TestClient, headers: dict, clinic, *, amount: str = "45000
     return appt_id, hi_id, close.json()
 
 
+def _create_hi(client: TestClient, headers: dict, name: str = "OSDE") -> str:
+    hi = client.post(
+        "/api/v1/health-insurances",
+        headers=headers,
+        json={"name": name, "coverage_percent": 80, "estimated_payment_days": 30},
+    )
+    assert hi.status_code == 201, hi.text
+    return hi.json()["id"]
+
+
+def _os_close_for_professional(
+    client: TestClient,
+    headers: dict,
+    *,
+    professional_id: str,
+    first_name: str,
+    last_name: str,
+    dni: str,
+    start: datetime,
+    hi_id: str,
+) -> tuple[str, str]:
+    """Cierra un turno OS del profesional. Devuelve (appointment_id, claim_id)."""
+    patient_id = _create_named_patient(client, headers, first_name, last_name, dni)
+    appt_id = _create_appointment(
+        client,
+        headers,
+        patient_id=patient_id,
+        professional_id=professional_id,
+        start=start,
+        attention_type="health_insurance",
+        health_insurance_id=hi_id,
+    )
+    attend = client.post(f"/api/v1/appointments/{appt_id}/attend", headers=headers)
+    assert attend.status_code == 200, attend.text
+    close = client.post(
+        f"/api/v1/appointments/{appt_id}/close",
+        headers=headers,
+        json={
+            "closure_type": "insurance_pending",
+            "amount": "45000",
+            "health_insurance_id": hi_id,
+        },
+    )
+    assert close.status_code == 200, close.text
+    claims = client.get("/api/v1/insurance-claims?open_only=true", headers=headers)
+    assert claims.status_code == 200, claims.text
+    match = next(c for c in claims.json()["data"] if c["appointment_id"] == appt_id)
+    return appt_id, match["id"]
+
+
+def _payment_fingerprint(db_session: Session, appointment_id: str) -> list[tuple]:
+    rows = db_session.execute(
+        select(Payment.id, Payment.status, Payment.amount, Payment.updated_at).where(
+            Payment.appointment_id == UUID(appointment_id),
+        ),
+    ).all()
+    return [(r[0], r[1], r[2], r[3]) for r in rows]
+
+
 @patch("app.services.appointment_service.ReminderService")
 def test_agd04_confirm_appointment(mock_reminder_cls, api_client):
     """AGD-04: confirmar turno pendiente → confirmed."""
@@ -605,6 +664,221 @@ def test_os_collected_skips_appointment_not_insurance_pending(
     assert appt["closure_status"] == "pending"
     assert appt["attention_type"] == "private"
     assert _payment_count(db_session, appt_id) == payments_before
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_os_professional_can_collect_own_claim(mock_reminder_cls, api_client):
+    """Professional A puede marcar collected su propio reclamo OS."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    hi_id = _create_hi(client, owner_headers)
+    appt_id, claim_id = _os_close_for_professional(
+        client, owner_headers,
+        professional_id=str(clinic["prof_a"].id),
+        first_name="Ana", last_name="Alvarez", dni="41000001",
+        start=datetime(2026, 11, 10, 10, 0, tzinfo=timezone.utc),
+        hi_id=hi_id,
+    )
+
+    prof_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    collected = client.patch(
+        f"/api/v1/insurance-claims/{claim_id}",
+        headers=prof_headers,
+        json={"status": "collected"},
+    )
+    assert collected.status_code == 200, collected.text
+    assert collected.json()["status"] == "collected"
+
+    appt = client.get(f"/api/v1/appointments/{appt_id}", headers=owner_headers).json()
+    assert appt["closure_status"] == "paid"
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_os_professional_cannot_collect_other_professional_claim(
+    mock_reminder_cls, api_client, db_session: Session,
+):
+    """Professional A no puede marcar collected el reclamo OS de B (403, sin side-effects)."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    hi_id = _create_hi(client, owner_headers)
+    appt_b, claim_b = _os_close_for_professional(
+        client, owner_headers,
+        professional_id=str(clinic["prof_b"].id),
+        first_name="Beto", last_name="Benitez", dni="41000002",
+        start=datetime(2026, 11, 10, 11, 0, tzinfo=timezone.utc),
+        hi_id=hi_id,
+    )
+    payments_before = _payment_fingerprint(db_session, appt_b)
+    db_session.expire_all()
+    appt_before = db_session.get(Appointment, UUID(appt_b))
+    claim_before = db_session.get(InsuranceClaim, UUID(claim_b))
+    assert appt_before.closure_status == AppointmentClosureStatus.INSURANCE_PENDING
+    assert claim_before.status == InsuranceClaimStatus.PENDING
+
+    prof_a_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    denied = client.patch(
+        f"/api/v1/insurance-claims/{claim_b}",
+        headers=prof_a_headers,
+        json={"status": "collected"},
+    )
+    assert denied.status_code == 403, denied.text
+
+    db_session.expire_all()
+    appt_after = db_session.get(Appointment, UUID(appt_b))
+    claim_after = db_session.get(InsuranceClaim, UUID(claim_b))
+    assert claim_after.status == InsuranceClaimStatus.PENDING
+    assert claim_after.collected_at is None
+    assert appt_after.closure_status == AppointmentClosureStatus.INSURANCE_PENDING
+    assert _payment_fingerprint(db_session, appt_b) == payments_before
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_os_owner_and_staff_can_collect_other_professional_claim(
+    mock_reminder_cls, api_client, db_session: Session,
+):
+    """Owner y staff pueden cobrar el reclamo OS de Professional B."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    hi_id = _create_hi(client, owner_headers)
+    appt_owner, claim_owner = _os_close_for_professional(
+        client, owner_headers,
+        professional_id=str(clinic["prof_b"].id),
+        first_name="Beto", last_name="Benitez", dni="41000003",
+        start=datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc),
+        hi_id=hi_id,
+    )
+    collected_owner = client.patch(
+        f"/api/v1/insurance-claims/{claim_owner}",
+        headers=owner_headers,
+        json={"status": "collected"},
+    )
+    assert collected_owner.status_code == 200, collected_owner.text
+    assert collected_owner.json()["status"] == "collected"
+    assert client.get(
+        f"/api/v1/appointments/{appt_owner}", headers=owner_headers,
+    ).json()["closure_status"] == "paid"
+
+    now = datetime.now(timezone.utc)
+    staff = User(
+        id=uuid4(),
+        organization_id=clinic["org"].id,
+        email="staff@example.com",
+        full_name="Staff QA",
+        password_hash=hash_password(clinic["password"]),
+        role=UserRole.STAFF,
+        created_at=now,
+        updated_at=now,
+    )
+    db_session.add(staff)
+    db_session.commit()
+    appt_staff, claim_staff = _os_close_for_professional(
+        client, owner_headers,
+        professional_id=str(clinic["prof_b"].id),
+        first_name="Carla", last_name="Costa", dni="41000004",
+        start=datetime(2026, 11, 10, 13, 0, tzinfo=timezone.utc),
+        hi_id=hi_id,
+    )
+    staff_headers = _login(client, staff.email, clinic["password"])
+    collected_staff = client.patch(
+        f"/api/v1/insurance-claims/{claim_staff}",
+        headers=staff_headers,
+        json={"status": "collected"},
+    )
+    assert collected_staff.status_code == 200, collected_staff.text
+    assert collected_staff.json()["status"] == "collected"
+    assert client.get(
+        f"/api/v1/appointments/{appt_staff}", headers=owner_headers,
+    ).json()["closure_status"] == "paid"
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_os_professional_cannot_patch_foreign_org_claim(
+    mock_reminder_cls, api_client, db_session: Session,
+):
+    """Un reclamo de otra organización sigue inaccesible."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    now = datetime.now(timezone.utc)
+    org2 = Organization(id=uuid4(), name="Otra", slug="otra-org-claim")
+    user2 = User(
+        id=uuid4(),
+        organization_id=org2.id,
+        email="otra-claim@example.com",
+        full_name="Dr Otra",
+        password_hash=hash_password("TestPass123!"),
+        role=UserRole.OWNER,
+        created_at=now,
+        updated_at=now,
+    )
+    patient2 = Patient(
+        id=uuid4(),
+        organization_id=org2.id,
+        first_name="Zeta",
+        last_name="Extranjero",
+        dni="41000999",
+        created_at=now,
+        updated_at=now,
+    )
+    hi2 = HealthInsurance(id=uuid4(), organization_id=org2.id, name="Swiss")
+    claim2 = InsuranceClaim(
+        id=uuid4(),
+        organization_id=org2.id,
+        patient_id=patient2.id,
+        appointment_id=None,
+        health_insurance_id=hi2.id,
+        expected_amount=Decimal("15000"),
+        service_date=date(2026, 11, 10),
+        status=InsuranceClaimStatus.PENDING,
+    )
+    db_session.add_all([org2, user2, patient2, hi2, claim2])
+    db_session.commit()
+
+    prof_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    denied = client.patch(
+        f"/api/v1/insurance-claims/{claim2.id}",
+        headers=prof_headers,
+        json={"status": "collected"},
+    )
+    assert denied.status_code == 404, denied.text
+    db_session.expire_all()
+    assert db_session.get(InsuranceClaim, claim2.id).status == InsuranceClaimStatus.PENDING
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_os_professional_can_collect_claim_without_appointment(
+    mock_reminder_cls, api_client, db_session: Session,
+):
+    """Reclamo sin appointment_id sigue org-wide: professional puede marcar collected."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    hi_id = _create_hi(client, owner_headers)
+    patient_id = _create_named_patient(client, owner_headers, "Nora", "Nunez", "41000005")
+    claim = InsuranceClaim(
+        id=uuid4(),
+        organization_id=clinic["org"].id,
+        patient_id=UUID(patient_id),
+        appointment_id=None,
+        health_insurance_id=UUID(hi_id),
+        expected_amount=Decimal("12000"),
+        service_date=date(2026, 11, 10),
+        status=InsuranceClaimStatus.PENDING,
+    )
+    db_session.add(claim)
+    db_session.commit()
+
+    prof_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    collected = client.patch(
+        f"/api/v1/insurance-claims/{claim.id}",
+        headers=prof_headers,
+        json={"status": "collected"},
+    )
+    assert collected.status_code == 200, collected.text
+    assert collected.json()["status"] == "collected"
+    assert collected.json()["appointment_id"] is None
 
 
 @patch("app.services.appointment_service.ReminderService")

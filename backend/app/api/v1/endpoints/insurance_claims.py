@@ -58,4 +58,5 @@ def update_insurance_claim(
         current_user.organization_id,
         claim_id,
         data,
+        current_user,
     )

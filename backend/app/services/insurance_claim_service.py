@@ -4,7 +4,9 @@ from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
+from app.core.rbac import assert_can_access_appointment
 from app.models.enums import AppointmentClosureStatus, InsuranceClaimStatus
+from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
 from app.schemas.common import PaginatedResponse, pagination_meta
@@ -63,8 +65,15 @@ class InsuranceClaimService:
         organization_id: uuid.UUID,
         claim_id: uuid.UUID,
         data: InsuranceClaimUpdate,
+        current_user: User,
     ) -> InsuranceClaimListItem:
         claim, patient, insurance = self._get_row(organization_id, claim_id)
+        if claim.appointment_id is not None:
+            appointment = self.appointments.get_by_id(
+                organization_id, claim.appointment_id,
+            )
+            if appointment is not None:
+                assert_can_access_appointment(current_user, appointment)
         updates = data.model_dump(exclude_unset=True)
         now = datetime.now(timezone.utc)
         previous_status = claim.status
