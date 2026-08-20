@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import Response
 
 from app.core.dependencies import CurrentUser, DbSession
+from app.core.rbac import resolve_professional_filter
 from app.services.export_service import ExportService
 
 router = APIRouter(prefix="/exports", tags=["exports"])
@@ -25,11 +26,17 @@ def export_resource(
     if resource == "patients":
         content, media, filename = service.export_patients(org_id, format)
     elif resource == "payments":
-        content, media, filename = service.export_payments(org_id, format)
+        prof_filter = resolve_professional_filter(current_user, None)
+        content, media, filename = service.export_payments(
+            org_id, format, professional_id=prof_filter,
+        )
     elif resource == "claims":
         content, media, filename = service.export_claims(org_id, format)
     else:
-        content, media, filename = service.export_debt(org_id, format)
+        prof_filter = resolve_professional_filter(current_user, None)
+        content, media, filename = service.export_debt(
+            org_id, format, professional_id=prof_filter,
+        )
 
     return Response(
         content=content,

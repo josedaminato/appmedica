@@ -23,6 +23,8 @@ from app.models.enums import (
     AppointmentStatus,
     AttentionType,
     InsuranceClaimStatus,
+    PaymentMethod,
+    PaymentStatus,
     UserRole,
 )
 from app.models.health_insurance import HealthInsurance
@@ -133,13 +135,19 @@ def _login(client: TestClient, email: str, password: str) -> dict[str, str]:
 
 
 def _create_patient(client: TestClient, headers: dict) -> str:
+    return _create_named_patient(client, headers, "María", "García", "27123456")
+
+
+def _create_named_patient(
+    client: TestClient, headers: dict, first_name: str, last_name: str, dni: str,
+) -> str:
     resp = client.post(
         "/api/v1/patients",
         headers=headers,
         json={
-            "first_name": "María",
-            "last_name": "García",
-            "dni": "27123456",
+            "first_name": first_name,
+            "last_name": last_name,
+            "dni": dni,
             "phone": "2615550000",
         },
     )
@@ -689,6 +697,188 @@ def test_tea06_professional_sees_only_own_debt(mock_reminder_cls, api_client):
     summary = client.get("/api/v1/payments/summary", headers=prof_headers)
     assert summary.status_code == 200, summary.text
     assert float(summary.json()["private_debt_total"]) == 8000.0
+
+
+def _close_partial(client: TestClient, headers: dict, appt_id: str) -> None:
+    attend = client.post(f"/api/v1/appointments/{appt_id}/attend", headers=headers)
+    assert attend.status_code == 200, attend.text
+    closed = client.post(
+        f"/api/v1/appointments/{appt_id}/close",
+        headers=headers,
+        json={"closure_type": "partial", "amount": "10000", "paid_amount": "2000", "method": "cash"},
+    )
+    assert closed.status_code == 200, closed.text
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_professional_export_debt_excludes_other_professional(
+    mock_reminder_cls, api_client,
+):
+    """Professional A exporta solo su deuda; owner ve A y B."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    patient_a = _create_named_patient(client, owner_headers, "Ana", "Alvarez", "40000001")
+    patient_b = _create_named_patient(client, owner_headers, "Beto", "Benitez", "40000002")
+    day = datetime(2026, 11, 3, 10, 0, tzinfo=timezone.utc)
+    appt_a = _create_appointment(
+        client, owner_headers,
+        patient_id=patient_a, professional_id=str(clinic["prof_a"].id), start=day,
+    )
+    appt_b = _create_appointment(
+        client, owner_headers,
+        patient_id=patient_b, professional_id=str(clinic["prof_b"].id),
+        start=day + timedelta(hours=3),
+    )
+    _close_partial(client, owner_headers, appt_a)
+    _close_partial(client, owner_headers, appt_b)
+
+    prof_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    listed = client.get("/api/v1/payments/items?tab=private", headers=prof_headers)
+    assert listed.status_code == 200, listed.text
+    assert {row["patient_name"] for row in listed.json()} == {"Alvarez, Ana"}
+
+    debt_a = client.get("/api/v1/exports/debt?format=csv", headers=prof_headers)
+    assert debt_a.status_code == 200, debt_a.text
+    body_a = debt_a.content.decode("utf-8-sig")
+    assert "Alvarez, Ana" in body_a
+    assert "Benitez, Beto" not in body_a
+
+    debt_owner = client.get("/api/v1/exports/debt?format=csv", headers=owner_headers)
+    assert debt_owner.status_code == 200, debt_owner.text
+    body_owner = debt_owner.content.decode("utf-8-sig")
+    assert "Alvarez, Ana" in body_owner
+    assert "Benitez, Beto" in body_owner
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_professional_export_payments_uses_payment_professional_id(
+    mock_reminder_cls, api_client,
+):
+    """Export de cobros sigue Payment.professional_id, no el profesional del turno."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    prof_a_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    patient_a = _create_named_patient(client, owner_headers, "Ana", "Alvarez", "40000011")
+    patient_b = _create_named_patient(client, owner_headers, "Beto", "Benitez", "40000012")
+    day = datetime(2026, 11, 4, 10, 0, tzinfo=timezone.utc)
+    appt_a = _create_appointment(
+        client, owner_headers,
+        patient_id=patient_a, professional_id=str(clinic["prof_a"].id), start=day,
+    )
+    appt_b = _create_appointment(
+        client, owner_headers,
+        patient_id=patient_b, professional_id=str(clinic["prof_b"].id),
+        start=day + timedelta(hours=3),
+    )
+    # A cierra su turno → Payment.professional_id = A
+    _close_partial(client, prof_a_headers, appt_a)
+    # Owner cierra el turno de B → Payment.professional_id = owner, no B
+    _close_partial(client, owner_headers, appt_b)
+
+    recent_a = client.get("/api/v1/payments/items?tab=recent", headers=prof_a_headers)
+    assert recent_a.status_code == 200, recent_a.text
+    recent_names = {row["patient_name"] for row in recent_a.json()}
+
+    exported = client.get("/api/v1/exports/payments?format=csv", headers=prof_a_headers)
+    assert exported.status_code == 200, exported.text
+    body = exported.content.decode("utf-8-sig")
+    assert "Alvarez, Ana" in body
+    assert "Benitez, Beto" not in body
+    assert "Alvarez, Ana" in recent_names
+    assert "Benitez, Beto" not in recent_names
+
+
+@patch("app.services.appointment_service.ReminderService")
+def test_professional_exports_isolate_organization(
+    mock_reminder_cls, api_client, db_session: Session,
+):
+    """Deuda y cobros de otra organización no aparecen en el export."""
+    client, clinic = api_client
+    mock_reminder_cls.return_value.schedule_for_appointment.return_value = None
+    owner_headers = _login(client, clinic["owner"].email, clinic["password"])
+    patient_a = _create_named_patient(client, owner_headers, "Ana", "Alvarez", "40000021")
+    day = datetime(2026, 11, 5, 10, 0, tzinfo=timezone.utc)
+    appt_a = _create_appointment(
+        client, owner_headers,
+        patient_id=patient_a, professional_id=str(clinic["prof_a"].id), start=day,
+    )
+    _close_partial(client, owner_headers, appt_a)
+
+    now = datetime.now(timezone.utc)
+    org2 = Organization(id=uuid4(), name="Otra", slug="otra-org")
+    user2 = User(
+        id=uuid4(),
+        organization_id=org2.id,
+        email="otra@example.com",
+        full_name="Dr Otra",
+        password_hash=hash_password("TestPass123!"),
+        role=UserRole.OWNER,
+        created_at=now,
+        updated_at=now,
+    )
+    patient2 = Patient(
+        id=uuid4(),
+        organization_id=org2.id,
+        first_name="Zeta",
+        last_name="Extranjero",
+        dni="99999999",
+        created_at=now,
+        updated_at=now,
+    )
+    start = datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc)
+    appt2 = Appointment(
+        id=uuid4(),
+        organization_id=org2.id,
+        patient_id=patient2.id,
+        professional_id=user2.id,
+        start_at=start,
+        end_at=start + timedelta(minutes=30),
+        status=AppointmentStatus.ATTENDED,
+        modality=AppointmentModality.IN_PERSON,
+        attention_type=AttentionType.PRIVATE,
+        closure_status=AppointmentClosureStatus.PENDING,
+        expected_amount=Decimal("7777"),
+        created_at=now,
+        updated_at=now,
+    )
+    pay2 = Payment(
+        id=uuid4(),
+        organization_id=org2.id,
+        patient_id=patient2.id,
+        appointment_id=appt2.id,
+        professional_id=user2.id,
+        amount=Decimal("7777"),
+        method=PaymentMethod.CASH,
+        status=PaymentStatus.PENDING,
+        created_at=now,
+        updated_at=now,
+    )
+    pay2_paid = Payment(
+        id=uuid4(),
+        organization_id=org2.id,
+        patient_id=patient2.id,
+        appointment_id=appt2.id,
+        professional_id=user2.id,
+        amount=Decimal("1111"),
+        method=PaymentMethod.CASH,
+        status=PaymentStatus.PAID,
+        paid_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+    db_session.add_all([org2, user2, patient2, appt2, pay2, pay2_paid])
+    db_session.commit()
+
+    prof_headers = _login(client, clinic["prof_a"].email, clinic["password"])
+    debt = client.get("/api/v1/exports/debt?format=csv", headers=prof_headers)
+    payments = client.get("/api/v1/exports/payments?format=csv", headers=prof_headers)
+    assert debt.status_code == 200, debt.text
+    assert payments.status_code == 200, payments.text
+    combined = debt.content.decode("utf-8-sig") + payments.content.decode("utf-8-sig")
+    assert "Extranjero" not in combined
+    assert "Alvarez, Ana" in debt.content.decode("utf-8-sig")
 
 
 def test_cal04_calendar_feed_token_rotation(api_client):

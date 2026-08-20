@@ -43,8 +43,12 @@ class ExportService:
         self,
         organization_id: uuid.UUID,
         fmt: str,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[bytes, str, str]:
-        items = CollectionsService(self.db).list_items(organization_id, "recent")
+        items = CollectionsService(self.db).list_items(
+            organization_id, "recent", professional_id=professional_id,
+        )
         rows = [
             {
                 "paciente": i.patient_name,
@@ -89,10 +93,12 @@ class ExportService:
         self,
         organization_id: uuid.UUID,
         fmt: str,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[bytes, str, str]:
         coll = CollectionsService(self.db)
-        private = coll.list_items(organization_id, "private")
-        insurance = coll.list_items(organization_id, "insurance")
+        private = coll.list_items(organization_id, "private", professional_id=professional_id)
+        insurance = coll.list_items(organization_id, "insurance", professional_id=professional_id)
         rows = []
         for i in private:
             rows.append(
