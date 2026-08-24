@@ -200,6 +200,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         *,
         start: datetime,
         end: datetime,
+        professional_id: uuid.UUID | None = None,
     ) -> int:
         """Cuenta turnos activos en [start, end) por instante UTC (no por fecha UTC)."""
         stmt = select(func.count()).select_from(Appointment).where(
@@ -210,6 +211,8 @@ class AppointmentRepository(BaseRepository[Appointment]):
                 [AppointmentStatus.CANCELLED, AppointmentStatus.RESCHEDULED],
             ),
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
     def count_unclosed_attended(
@@ -247,24 +250,38 @@ class AppointmentRepository(BaseRepository[Appointment]):
         self,
         organization_id: uuid.UUID,
         now: datetime,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
             Appointment.start_at >= now,
             Appointment.status == AppointmentStatus.PENDING,
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
-    def list_upcoming(self, organization_id: uuid.UUID, now: datetime, limit: int = 5) -> list[Appointment]:
+    def list_upcoming(
+        self,
+        organization_id: uuid.UUID,
+        now: datetime,
+        limit: int = 5,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> list[Appointment]:
+        conditions = [
+            Appointment.organization_id == organization_id,
+            Appointment.start_at >= now,
+            Appointment.status.in_(
+                [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
+            ),
+        ]
+        if professional_id:
+            conditions.append(Appointment.professional_id == professional_id)
         stmt = self._with_relations(
             select(Appointment)
-            .where(
-                Appointment.organization_id == organization_id,
-                Appointment.start_at >= now,
-                Appointment.status.in_(
-                    [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
-                ),
-            )
+            .where(*conditions)
             .order_by(Appointment.start_at.asc())
             .limit(limit),
         )
@@ -355,6 +372,8 @@ class AppointmentRepository(BaseRepository[Appointment]):
         organization_id: uuid.UUID,
         since: datetime,
         patient_id: uuid.UUID | None = None,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
@@ -363,6 +382,8 @@ class AppointmentRepository(BaseRepository[Appointment]):
         )
         if patient_id:
             stmt = stmt.where(Appointment.patient_id == patient_id)
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
     def count_between(
