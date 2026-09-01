@@ -8,9 +8,9 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.appointment import Appointment
 from app.models.enums import (
     AppointmentClosureStatus,
-    AppointmentStatus,
     InsuranceClaimStatus,
     PaymentStatus,
 )
@@ -31,6 +31,7 @@ from app.schemas.dashboard_alerts import (
     TopDebtPatientsAlert,
     UnclosedAppointmentsAlert,
 )
+from app.services.collections_service import CollectionsService
 
 
 class DashboardAlertsService:
@@ -39,6 +40,7 @@ class DashboardAlertsService:
         self.appointments = AppointmentRepository(db)
         self.payments = PaymentRepository(db)
         self.claims = InsuranceClaimRepository(db)
+        self.collections = CollectionsService(db)
 
     def get_alerts(
         self,
@@ -46,21 +48,29 @@ class DashboardAlertsService:
         *,
         claims_old_days: int = 45,
         top_patients_limit: int = 5,
+        professional_id: uuid.UUID | None = None,
     ) -> DashboardAlerts:
-        today = date.today()
-
-        unclosed_count = self.appointments.count_unclosed_attended(organization_id)
         now = datetime.now(timezone.utc)
-        overdue_count = self.appointments.count_overdue_unresolved(organization_id, now)
 
-        partial_count, partial_pending_total = self._partial_payments_alert(organization_id)
+        unclosed_count = self.appointments.count_unclosed_attended(
+            organization_id, professional_id=professional_id,
+        )
+        overdue_count = self.appointments.count_overdue_unresolved(
+            organization_id, now, professional_id=professional_id,
+        )
+
+        partial_count, partial_pending_total = self._partial_payments_alert(
+            organization_id, professional_id=professional_id,
+        )
         old_claims, old_claims_total = self._old_claims_by_insurance(
             organization_id,
             threshold_days=claims_old_days,
+            professional_id=professional_id,
         )
         top_patients = self._top_debt_patients(
             organization_id,
             limit=top_patients_limit,
+            professional_id=professional_id,
         )
 
         return DashboardAlerts(
@@ -78,10 +88,12 @@ class DashboardAlertsService:
             top_debt_patients=TopDebtPatientsAlert(items=top_patients),
         )
 
-    def _partial_payments_alert(self, organization_id: uuid.UUID) -> tuple[int, Decimal]:
-        # appointment is pending/partial and has at least one pending Payment; compute distinct appointments + total pending
-        from app.models.appointment import Appointment
-
+    def _partial_payments_alert(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> tuple[int, Decimal]:
         stmt = (
             select(
                 func.count(func.distinct(Payment.appointment_id)),
@@ -101,6 +113,8 @@ class DashboardAlertsService:
                 ),
             )
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         row = self.db.execute(stmt).one()
         return int(row[0] or 0), Decimal(str(row[1] or 0))
 
@@ -109,13 +123,13 @@ class DashboardAlertsService:
         organization_id: uuid.UUID,
         *,
         threshold_days: int,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[list[OldInsuranceClaimsByInsurance], int]:
         cutoff = date.today() - timedelta(days=threshold_days)
-        # group by insurance, count + sum + avg days pending
-        # avg days pending computed in python (portable)
         stmt = (
             select(InsuranceClaim, HealthInsurance)
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
+            .outerjoin(Appointment, InsuranceClaim.appointment_id == Appointment.id)
             .where(
                 InsuranceClaim.organization_id == organization_id,
                 InsuranceClaim.status.in_([InsuranceClaimStatus.PENDING, InsuranceClaimStatus.INVOICED]),
@@ -123,6 +137,8 @@ class DashboardAlertsService:
             )
             .order_by(InsuranceClaim.service_date.asc())
         )
+        if professional_id:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         grouped: dict[uuid.UUID, list[InsuranceClaim]] = defaultdict(list)
         names: dict[uuid.UUID, str] = {}
         for claim, ins in self.db.execute(stmt).all():
@@ -154,8 +170,13 @@ class DashboardAlertsService:
         organization_id: uuid.UUID,
         *,
         limit: int,
+        professional_id: uuid.UUID | None = None,
     ) -> list[TopDebtPatient]:
-        # private debt by patient
+        if professional_id is not None:
+            return self._top_debt_patients_for_professional(
+                organization_id, limit=limit, professional_id=professional_id,
+            )
+
         private_stmt = (
             select(Patient.id, Patient.first_name, Patient.last_name, func.coalesce(func.sum(Payment.amount), 0))
             .join(Payment, Payment.patient_id == Patient.id)
@@ -171,7 +192,6 @@ class DashboardAlertsService:
             for row in self.db.execute(private_stmt).all()
         }
 
-        # insurance debt by patient
         insurance_stmt = (
             select(Patient.id, func.coalesce(func.sum(InsuranceClaim.expected_amount), 0))
             .join(InsuranceClaim, InsuranceClaim.patient_id == Patient.id)
@@ -207,6 +227,52 @@ class DashboardAlertsService:
         for pid in combined_ids:
             p_debt = private.get(pid, Decimal("0"))
             i_debt = insurance.get(pid, Decimal("0"))
+            total = p_debt + i_debt
+            if total <= 0:
+                continue
+            items.append(
+                TopDebtPatient(
+                    patient_id=pid,
+                    patient_name=names.get(pid, "Paciente"),
+                    total_debt=total,
+                    private_debt=p_debt,
+                    insurance_debt=i_debt,
+                ),
+            )
+        items.sort(key=lambda x: x.total_debt, reverse=True)
+        return items[:limit]
+
+    def _top_debt_patients_for_professional(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        limit: int,
+        professional_id: uuid.UUID,
+    ) -> list[TopDebtPatient]:
+        private_by_patient: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
+        insurance_by_patient: dict[uuid.UUID, Decimal] = defaultdict(Decimal)
+        names: dict[uuid.UUID, str] = {}
+
+        for row in self.collections.list_items(
+            organization_id, "private", professional_id=professional_id,
+        ):
+            private_by_patient[row.patient_id] += Decimal(row.balance_pending)
+            names[row.patient_id] = row.patient_name
+
+        for row in self.collections.list_items(
+            organization_id, "insurance", professional_id=professional_id,
+        ):
+            insurance_by_patient[row.patient_id] += Decimal(row.balance_pending)
+            names.setdefault(row.patient_id, row.patient_name)
+
+        combined_ids = set(private_by_patient.keys()) | set(insurance_by_patient.keys())
+        if not combined_ids:
+            return []
+
+        items: list[TopDebtPatient] = []
+        for pid in combined_ids:
+            p_debt = private_by_patient.get(pid, Decimal("0"))
+            i_debt = insurance_by_patient.get(pid, Decimal("0"))
             total = p_debt + i_debt
             if total <= 0:
                 continue
