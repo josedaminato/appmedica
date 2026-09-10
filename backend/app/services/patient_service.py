@@ -5,27 +5,58 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import conflict, not_found
 from app.core.tenant_validation import TenantResourceValidator
+from app.models.enums import UserRole
 from app.models.patient import Patient
+from app.models.user import User
+from app.repositories.appointment_repository import AppointmentRepository
+from app.repositories.consultation_repository import ConsultationRepository
 from app.repositories.patient_repository import PatientRepository
 from app.schemas.common import PaginatedResponse, pagination_meta
-from app.schemas.patient import PatientCreate, PatientResponse, PatientUpdate
+from app.schemas.patient import (
+    PatientAdminResponse,
+    PatientCreate,
+    PatientResponse,
+    PatientUpdate,
+    patient_response_for_user,
+)
 
 
 class PatientService:
     def __init__(self, db: Session) -> None:
         self.db = db
         self.repo = PatientRepository(db)
+        self.appointments = AppointmentRepository(db)
+        self.consultations = ConsultationRepository(db)
         self.tenant = TenantResourceValidator(db)
+
+    def _has_clinical_relationship(
+        self,
+        organization_id: uuid.UUID,
+        user: User,
+        patient_id: uuid.UUID,
+    ) -> bool:
+        if user.role == UserRole.STAFF:
+            return False
+        if user.role != UserRole.PROFESSIONAL:
+            return True
+        if self.appointments.exists_professional_patient(
+            organization_id, user.id, patient_id,
+        ):
+            return True
+        return self.consultations.exists_professional_patient(
+            organization_id, user.id, patient_id,
+        )
 
     def list_patients(
         self,
         organization_id: uuid.UUID,
+        current_user: User,
         *,
         page: int,
         page_size: int,
         q: str | None,
         is_active: bool | None,
-    ) -> PaginatedResponse[PatientResponse]:
+    ) -> PaginatedResponse[PatientAdminResponse | PatientResponse]:
         items, total = self.repo.list_paginated(
             organization_id,
             page=page,
@@ -34,17 +65,42 @@ class PatientService:
             is_active=is_active,
         )
         return PaginatedResponse(
-            data=[PatientResponse.model_validate(p) for p in items],
+            data=[
+                patient_response_for_user(
+                    p,
+                    current_user,
+                    has_clinical_relationship=self._has_clinical_relationship(
+                        organization_id, current_user, p.id,
+                    ),
+                )
+                for p in items
+            ],
             meta=pagination_meta(page, page_size, total),
         )
 
-    def get_patient(self, organization_id: uuid.UUID, patient_id: uuid.UUID) -> PatientResponse:
+    def get_patient(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID,
+        current_user: User,
+    ) -> PatientAdminResponse | PatientResponse:
         patient = self.repo.get_by_id(organization_id, patient_id)
         if not patient:
             raise not_found("Paciente")
-        return PatientResponse.model_validate(patient)
+        return patient_response_for_user(
+            patient,
+            current_user,
+            has_clinical_relationship=self._has_clinical_relationship(
+                organization_id, current_user, patient_id,
+            ),
+        )
 
-    def create_patient(self, organization_id: uuid.UUID, data: PatientCreate) -> PatientResponse:
+    def create_patient(
+        self,
+        organization_id: uuid.UUID,
+        data: PatientCreate,
+        current_user: User,
+    ) -> PatientAdminResponse | PatientResponse:
         existing = self.repo.get_by_dni(organization_id, data.dni.strip())
         if existing:
             raise conflict("Ya existe un paciente con ese DNI")
@@ -68,14 +124,21 @@ class PatientService:
         self.repo.create(patient)
         self.db.commit()
         self.db.refresh(patient)
-        return PatientResponse.model_validate(patient)
+        return patient_response_for_user(
+            patient,
+            current_user,
+            has_clinical_relationship=self._has_clinical_relationship(
+                organization_id, current_user, patient.id,
+            ),
+        )
 
     def update_patient(
         self,
         organization_id: uuid.UUID,
         patient_id: uuid.UUID,
         data: PatientUpdate,
-    ) -> PatientResponse:
+        current_user: User,
+    ) -> PatientAdminResponse | PatientResponse:
         patient = self.repo.get_by_id(organization_id, patient_id)
         if not patient:
             raise not_found("Paciente")
@@ -115,7 +178,13 @@ class PatientService:
         self.repo.update(patient)
         self.db.commit()
         self.db.refresh(patient)
-        return PatientResponse.model_validate(patient)
+        return patient_response_for_user(
+            patient,
+            current_user,
+            has_clinical_relationship=self._has_clinical_relationship(
+                organization_id, current_user, patient.id,
+            ),
+        )
 
     def delete_patient(self, organization_id: uuid.UUID, patient_id: uuid.UUID) -> None:
         patient = self.repo.get_by_id(organization_id, patient_id)

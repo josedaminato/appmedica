@@ -14,6 +14,8 @@ import { ApiError } from "@/lib/api-client"
 import { useRoleScope } from "@/hooks/use-role-scope"
 import { PatientFormDialog } from "../components/PatientFormDialog"
 import * as patientsApi from "../api"
+import * as consultationApi from "@/features/consultations/api"
+import { ClinicalProfileEditDialog } from "@/features/consultations/components/ClinicalProfileEditDialog"
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +23,7 @@ export function PatientDetailPage() {
   const queryClient = useQueryClient()
   const { isStaff } = useRoleScope()
   const [editOpen, setEditOpen] = useState(false)
+  const [clinicalEditOpen, setClinicalEditOpen] = useState(false)
   const [error, setError] = useState("")
 
   const { data: patient, isLoading, isError, error: queryError, refetch } = useQuery({
@@ -33,6 +36,18 @@ export function PatientDetailPage() {
     queryKey: ["patient-admin", id],
     queryFn: () => patientsApi.getPatientAdminSummary(id!),
     enabled: !!id,
+  })
+
+  const { data: clinical } = useQuery({
+    queryKey: ["patient-clinical", id],
+    queryFn: () => consultationApi.getPatientClinical(id!),
+    enabled: !!id && !isStaff,
+  })
+
+  const { data: consultations = [] } = useQuery({
+    queryKey: ["patient-consultations", id],
+    queryFn: () => consultationApi.listPatientConsultations(id!),
+    enabled: !!id && !isStaff,
   })
 
   const updateMutation = useMutation({
@@ -54,6 +69,17 @@ export function PatientDetailPage() {
       navigate("/patients")
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Error al eliminar"),
+  })
+
+  const updateClinical = useMutation({
+    mutationFn: (payload: Parameters<typeof consultationApi.updatePatientClinical>[1]) =>
+      consultationApi.updatePatientClinical(id!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-clinical", id] })
+      queryClient.invalidateQueries({ queryKey: ["patient", id] })
+      setClinicalEditOpen(false)
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Error al guardar"),
   })
 
   if (isLoading) return <LoadingSkeleton rows={4} />
@@ -171,6 +197,55 @@ export function PatientDetailPage() {
         )}
       </div>
 
+      {!isStaff && (
+        <>
+          <Card className="mb-6">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Información clínica</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setClinicalEditOpen(true)}>
+                Editar
+              </Button>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 text-sm">
+              <ClinicalInfo label="Antecedentes" value={clinical?.medical_history} />
+              <ClinicalInfo label="Alergias" value={clinical?.allergies} />
+              <ClinicalInfo label="Medicación habitual" value={clinical?.current_medications} />
+              <ClinicalInfo label="Observaciones clínicas" value={clinical?.clinical_notes} className="sm:col-span-2" />
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6" id="historia-clinica">
+            <CardHeader>
+              <CardTitle className="text-base">Historia clínica</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {consultations.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin consultas registradas</p>
+              ) : (
+                <ul className="space-y-3">
+                  {consultations.map((c) => (
+                    <li key={c.id} className="flex justify-between items-start gap-3 border-b pb-3 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {c.appointment_start_at ? formatDate(c.appointment_start_at) : formatDate(c.created_at)}
+                          {" · Consulta"}
+                        </p>
+                        <p className="text-sm">{c.diagnosis || c.reason || "—"}</p>
+                      </div>
+                      {c.status === "finalized" && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/agenda/${c.appointment_id}/atencion`}>Ver consulta</Link>
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
       {admin && (
         <>
           <Card className="mt-6">
@@ -235,6 +310,35 @@ export function PatientDetailPage() {
         onSubmit={async (payload) => updateMutation.mutateAsync(payload)}
         loading={updateMutation.isPending}
       />
+
+      {!isStaff && (
+        <ClinicalProfileEditDialog
+          open={clinicalEditOpen}
+          onOpenChange={setClinicalEditOpen}
+          profile={clinical ?? null}
+          onSubmit={async (data) => {
+            await updateClinical.mutateAsync(data)
+          }}
+          loading={updateClinical.isPending}
+        />
+      )}
+    </div>
+  )
+}
+
+function ClinicalInfo({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value?: string | null
+  className?: string
+}) {
+  return (
+    <div className={className}>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-medium mt-0.5">{value?.trim() || "Sin información registrada"}</p>
     </div>
   )
 }
