@@ -43,21 +43,25 @@ SCHEMA = "appmedica_reminder_test"
 _SEND_WINDOW_LOCAL = datetime(2026, 6, 10, 10, 0, tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
 
 
-@contextmanager
-def _frozen_send_window():
-    """Congela el reloj en la ventana de envío [08:00, 21:00] del consultorio."""
-    frozen_utc = _SEND_WINDOW_LOCAL.astimezone(timezone.utc)
+class _FrozenDateTime(datetime):
+    """Subclass de datetime: datetime.now no se puede parchear (tipo C inmutable)."""
 
-    def fake_now(tz=None):
+    @classmethod
+    def now(cls, tz=None):
+        frozen_utc = _SEND_WINDOW_LOCAL.astimezone(timezone.utc)
         if tz is None:
             return frozen_utc.replace(tzinfo=None)
         return frozen_utc.astimezone(tz)
 
+
+@contextmanager
+def _frozen_send_window():
+    """Congela el reloj en la ventana de envío [08:00, 21:00] del consultorio."""
     with (
-        patch(f"{__name__}.datetime.now", side_effect=fake_now),
-        patch("app.services.reminder_service.datetime.now", side_effect=fake_now),
+        patch(f"{__name__}.datetime", _FrozenDateTime),
+        patch("app.services.reminder_service.datetime", _FrozenDateTime),
     ):
-        yield frozen_utc
+        yield _SEND_WINDOW_LOCAL.astimezone(timezone.utc)
 
 
 def _in_send_window(fn):
