@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
+from functools import wraps
+from unittest.mock import patch
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -37,6 +40,42 @@ from app.repositories.reminder_repository import ReminderRepository
 from app.services.reminder_service import ReminderService
 
 SCHEMA = "appmedica_reminder_test"
+_SEND_WINDOW_LOCAL = datetime(2026, 6, 10, 10, 0, tzinfo=ZoneInfo("America/Argentina/Buenos_Aires"))
+
+
+@contextmanager
+def _frozen_send_window():
+    """Congela el reloj en la ventana de envío [08:00, 21:00] del consultorio."""
+    frozen_utc = _SEND_WINDOW_LOCAL.astimezone(timezone.utc)
+
+    def fake_now(tz=None):
+        if tz is None:
+            return frozen_utc.replace(tzinfo=None)
+        return frozen_utc.astimezone(tz)
+
+    with (
+        patch(f"{__name__}.datetime.now", side_effect=fake_now),
+        patch("app.services.reminder_service.datetime.now", side_effect=fake_now),
+    ):
+        yield frozen_utc
+
+
+def _in_send_window(fn):
+    """Ejecuta el test con now determinístico; no mockea is_in_quiet_hours."""
+
+    @wraps(fn)
+    def sync_wrapper(*args, **kwargs):
+        with _frozen_send_window():
+            return fn(*args, **kwargs)
+
+    @wraps(fn)
+    async def async_wrapper(*args, **kwargs):
+        with _frozen_send_window():
+            return await fn(*args, **kwargs)
+
+    if asyncio.iscoroutinefunction(fn):
+        return async_wrapper
+    return sync_wrapper
 
 
 def _postgres_url() -> str:
@@ -265,6 +304,7 @@ def test_skip_locked_second_session_sees_nothing(db: Session, pg_engine):
         session_b.close()
 
 
+@_in_send_window
 def test_two_processors_send_once(db: Session, pg_engine):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -356,6 +396,7 @@ async def test_past_appointment_is_skipped(db: Session):
     assert db.query(ReminderJob).one().error_code == "appointment_past"
 
 
+@_in_send_window
 async def test_uses_current_patient_phone(db: Session):
     org, _owner, patient, appt = _seed(db, phone="111111")
     settings = _settings(whatsapp_provider="twilio", email_provider="mock")
@@ -374,6 +415,7 @@ async def test_uses_current_patient_phone(db: Session):
     assert provider.payloads[0].phone == "222222"
 
 
+@_in_send_window
 async def test_5xx_schedules_retry(db: Session):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -389,6 +431,7 @@ async def test_5xx_schedules_retry(db: Session):
     assert job.error_code == "http_503"
 
 
+@_in_send_window
 async def test_429_uses_retry_after(db: Session):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -410,6 +453,7 @@ async def test_429_uses_retry_after(db: Session):
     assert abs((job.next_attempt_at - expected).total_seconds()) < 15
 
 
+@_in_send_window
 async def test_4xx_is_terminal_failed(db: Session):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -424,6 +468,7 @@ async def test_4xx_is_terminal_failed(db: Session):
     assert job.attempt_count == 1
 
 
+@_in_send_window
 async def test_orphan_sending_is_recovered(db: Session):
     org, _owner, patient, appt = _seed(db)
     job = _job(db, org, patient, appt)
@@ -456,6 +501,7 @@ async def test_missing_contact_skipped(db: Session):
     assert job.error_code == "missing_contact"
 
 
+@_in_send_window
 async def test_retry_after_start_is_skipped(db: Session):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -642,6 +688,7 @@ def test_sent_job_blocks_second_schedule_after_start_change(db: Session):
     assert job.status == ReminderStatus.SENT
 
 
+@_in_send_window
 async def test_valid_due_job_sends_normally(db: Session):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -653,6 +700,7 @@ async def test_valid_due_job_sends_normally(db: Session):
     assert stored.status == ReminderStatus.SENT
 
 
+@_in_send_window
 async def test_cancel_before_send_does_not_call_provider(db: Session, pg_engine):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -687,6 +735,7 @@ async def test_cancel_before_send_does_not_call_provider(db: Session, pg_engine)
     assert stored.error_code == "appointment_cancelled"
 
 
+@_in_send_window
 async def test_start_at_change_before_send_does_not_send_old_reminder(db: Session, pg_engine):
     org, _owner, patient, appt = _seed(db)
     _job(db, org, patient, appt)
@@ -722,6 +771,7 @@ async def test_start_at_change_before_send_does_not_send_old_reminder(db: Sessio
     assert stored.error_code == "appointment_start_changed"
 
 
+@_in_send_window
 async def test_provider_success_does_not_overwrite_cancelled(db: Session, pg_engine):
     org, _owner, patient, appt = _seed(db)
     job = _job(db, org, patient, appt)
