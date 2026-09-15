@@ -164,9 +164,11 @@ export function AttentionPage() {
 
   const closeMutation = useMutation({
     mutationFn: (data: apptApi.ClosePayload) => apptApi.closeAppointment(appointmentId!, data),
-    onSuccess: () => {
+    onSuccess: (closed) => {
       setCloseOpen(false)
+      setError("")
       setSuccess("Cobro registrado")
+      setAppointment(closed)
       qc.invalidateQueries({ queryKey: ["appointments"] })
       qc.invalidateQueries({ queryKey: ["dashboard"] })
     },

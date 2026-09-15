@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/select"
 import type { Appointment, AppointmentClosureStatus, HealthInsurance } from "@/types/api"
 import { InsuranceCatalogHint } from "@/features/insurances/components/InsuranceCatalogHint"
+import { ApiError } from "@/lib/api-client"
 import type { ClosePayload } from "../api"
-import { defaultClosureType } from "./defaultClosureType"
+import { closureAmountInput, defaultClosureType } from "./defaultClosureType"
 
 interface CloseAppointmentDialogProps {
   open: boolean
@@ -32,24 +33,22 @@ export function CloseAppointmentDialog({
   onSubmit,
   loading,
 }: CloseAppointmentDialogProps) {
-  const [closureType, setClosureType] = useState<AppointmentClosureStatus>(() =>
-    defaultClosureType(appointment?.attention_type),
-  )
+  const [closureType, setClosureType] = useState<AppointmentClosureStatus>("paid")
   const [amount, setAmount] = useState("")
   const [paidAmount, setPaidAmount] = useState("")
   const [method, setMethod] = useState("cash")
   const [insuranceId, setInsuranceId] = useState("")
+  const [error, setError] = useState("")
 
-  function reset() {
-    const def = appointment?.expected_amount ?? ""
-    setAmount(def ? String(def) : "")
+  useEffect(() => {
+    if (!open) return
+    setAmount(closureAmountInput(appointment?.expected_amount))
     setPaidAmount("")
     setClosureType(defaultClosureType(appointment?.attention_type))
     setMethod("cash")
     setInsuranceId(appointment?.health_insurance_id ?? "")
-  }
-
-  const [error, setError] = useState("")
+    setError("")
+  }, [open, appointment?.id, appointment?.expected_amount, appointment?.attention_type, appointment?.health_insurance_id])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -77,17 +76,15 @@ export function CloseAppointmentDialog({
     }
     if (closureType === "partial") payload.paid_amount = Number(paidAmount)
     if (closureType === "insurance_pending") payload.health_insurance_id = insuranceId
-    await onSubmit(payload)
+    try {
+      await onSubmit(payload)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo cerrar el turno. Intentá de nuevo.")
+    }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (v) reset()
-        onOpenChange(v)
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Cerrar turno</DialogTitle>
