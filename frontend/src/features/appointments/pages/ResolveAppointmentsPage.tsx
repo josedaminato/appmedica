@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ import {
   isoToLocalDateParam,
 } from "@/lib/format"
 import { ApiError } from "@/lib/api-client"
+import { useRoleScope } from "@/hooks/use-role-scope"
 import type { Appointment, AppointmentClosureStatus } from "@/types/api"
 import { listHealthInsurances } from "@/features/insurances/api"
 import * as apptApi from "../api"
@@ -32,6 +33,7 @@ import {
   RescheduleAppointmentDialog,
   type ReschedulePayload,
 } from "../components/RescheduleAppointmentDialog"
+import { buildAppointmentActions } from "../appointmentRowActions"
 
 const CLOSURE_SUCCESS: Record<AppointmentClosureStatus, string> = {
   none: "",
@@ -53,47 +55,10 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["patient-admin"] })
 }
 
-type RowAction = {
-  id: string
-  label: string
-  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive"
-  primary?: boolean
-}
-
-function buildActions(a: Appointment): RowAction[] {
-  const actions: RowAction[] = []
-  const needsClose = a.status === "attended" && a.closure_status === "none"
-
-  if (a.status === "pending") {
-    actions.push({ id: "confirm", label: "Confirmar", variant: "secondary", primary: true })
-  }
-  if (a.status === "pending" || a.status === "confirmed") {
-    actions.push({
-      id: "attend",
-      label: "Asistió",
-      primary: a.status === "confirmed",
-    })
-    actions.push({ id: "no_show", label: "Ausente", variant: "outline" })
-    actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost" })
-    actions.push({ id: "cancel", label: "Cancelar", variant: "ghost" })
-  }
-  if (needsClose) {
-    actions.push({ id: "close", label: "Cerrar", primary: true })
-  }
-  if (a.closure_status === "pending" || a.closure_status === "partial") {
-    actions.push({
-      id: "payment",
-      label: "Cobrar",
-      variant: "outline",
-      primary: !needsClose && a.status !== "pending" && a.status !== "confirmed",
-    })
-  }
-  if (!actions.some((act) => act.primary) && actions.length > 0) actions[0].primary = true
-  return actions
-}
-
 export function ResolveAppointmentsPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { isStaff } = useRoleScope()
   const [searchParams] = useSearchParams()
   const rawKind = searchParams.get("kind")
   const kind = isToResolveKind(rawKind) ? rawKind : null
@@ -129,16 +94,12 @@ export function ResolveAppointmentsPage() {
       if (act === "no_show") return apptApi.noShowAppointment(id)
       if (act === "cancel") return apptApi.cancelAppointment(id)
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       setActionError("")
       invalidateAll(qc)
       if (variables.action === "confirm") setActionSuccess("Turno confirmado")
       if (variables.action === "cancel") setActionSuccess("Turno cancelado")
       if (variables.action === "no_show") setActionSuccess("Marcado como ausente")
-      if (variables.action === "attend" && data && "status" in (data as object)) {
-        setActionSuccess("Paciente asistió — completá el cierre")
-        setCloseTarget(data as Appointment)
-      }
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Error en la acción")
@@ -190,6 +151,21 @@ export function ResolveAppointmentsPage() {
   const pending = action.isPending || closeMutation.isPending || paymentMutation.isPending || rescheduleMutation.isPending
 
   function handleAction(appointment: Appointment, act: string) {
+    if (act === "atender") {
+      void (async () => {
+        setActionError("")
+        try {
+          if (appointment.status === "pending" || appointment.status === "confirmed") {
+            await apptApi.attendAppointment(appointment.id)
+            invalidateAll(qc)
+          }
+          navigate(`/agenda/${appointment.id}/atencion`)
+        } catch (err) {
+          setActionError(err instanceof ApiError ? err.message : "Error al atender")
+        }
+      })()
+      return
+    }
     if (act === "close") {
       setCloseTarget(appointment)
       return
@@ -248,6 +224,7 @@ export function ResolveAppointmentsPage() {
               key={a.id}
               appointment={a}
               disabled={pending}
+              allowClinical={!isStaff}
               onAction={(act) => handleAction(a, act)}
             />
           ))}
@@ -293,17 +270,22 @@ export function ResolveAppointmentsPage() {
 function ResolveRow({
   appointment: a,
   disabled,
+  allowClinical,
   onAction,
 }: {
   appointment: Appointment
   disabled: boolean
+  allowClinical: boolean
   onAction: (action: string) => void
 }) {
   const needsClose = a.status === "attended" && a.closure_status === "none"
   const patientName = a.patient
     ? `${a.patient.last_name}, ${a.patient.first_name}`
     : "Paciente"
-  const actions = useMemo(() => buildActions(a), [a])
+  const actions = useMemo(
+    () => buildAppointmentActions(a, needsClose, allowClinical),
+    [a, needsClose, allowClinical],
+  )
   const agendaDate = isoToLocalDateParam(a.start_at)
 
   return (

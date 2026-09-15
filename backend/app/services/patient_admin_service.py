@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import not_found
+from app.core.rbac import resolve_professional_filter
 from app.models.enums import (
     AppointmentClosureStatus,
     AppointmentStatus,
@@ -22,6 +23,7 @@ from app.schemas.patient_admin import (
     PatientPendingPayment,
     TimelineEvent,
 )
+from app.models.user import User
 from app.schemas.payment import PaymentResponse
 
 
@@ -37,29 +39,39 @@ class PatientAdminService:
         self,
         organization_id: uuid.UUID,
         patient_id: uuid.UUID,
+        current_user: User,
     ) -> PatientAdminSummary:
         patient = self.patients.get_by_id(organization_id, patient_id)
         if not patient:
             raise not_found("Paciente")
 
+        professional_id = resolve_professional_filter(current_user, None)
         now = datetime.now(timezone.utc)
         since_30 = now - timedelta(days=30)
 
-        private_debt = self.payments.sum_patient_debt(organization_id, patient_id)
-        insurance_debt = self.claims.sum_patient_insurance_debt(organization_id, patient_id)
+        private_debt = self.payments.sum_patient_debt(
+            organization_id, patient_id, professional_id=professional_id,
+        )
+        insurance_debt = self.claims.sum_patient_insurance_debt(
+            organization_id, patient_id, professional_id=professional_id,
+        )
 
         upcoming = self.appointments.list_by_patient(
             organization_id, patient_id, upcoming_only=True, limit=5,
+            professional_id=professional_id,
         )
         recent_appts = self.appointments.list_by_patient(
             organization_id, patient_id, upcoming_only=False, limit=10,
+            professional_id=professional_id,
         )
-        recent_payments = self.payments.list_by_patient(organization_id, patient_id, limit=5)
+        recent_payments = self.payments.list_by_patient(
+            organization_id, patient_id, limit=5, professional_id=professional_id,
+        )
         pending_payment_rows = self.payments.list_pending_by_patient(
-            organization_id, patient_id,
+            organization_id, patient_id, professional_id=professional_id,
         )
         open_claim_rows = self.claims.list_open_by_patient_with_insurance(
-            organization_id, patient_id,
+            organization_id, patient_id, professional_id=professional_id,
         )
 
         pending_private_payments = [
@@ -91,9 +103,11 @@ class PatientAdminService:
             private_debt=private_debt,
             insurance_debt=insurance_debt,
             total_debt=private_debt + insurance_debt,
-            no_show_count=self.appointments.count_no_shows(organization_id, patient_id),
+            no_show_count=self.appointments.count_no_shows(
+                organization_id, patient_id, professional_id=professional_id,
+            ),
             no_shows_last_30_days=self.appointments.count_no_shows_since(
-                organization_id, since_30, patient_id,
+                organization_id, since_30, patient_id, professional_id=professional_id,
             ),
             upcoming_appointments=[AppointmentResponse.model_validate(a) for a in upcoming],
             recent_appointments=[AppointmentResponse.model_validate(a) for a in recent_appts],

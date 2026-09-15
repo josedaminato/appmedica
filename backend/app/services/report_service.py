@@ -48,7 +48,14 @@ class ReportService:
         self.claims = InsuranceClaimRepository(db)
         self.organizations = OrganizationRepository(db)
 
-    def get_monthly_report(self, organization_id: uuid.UUID, year: int, month: int) -> MonthlyReport:
+    def get_monthly_report(
+        self,
+        organization_id: uuid.UUID,
+        year: int,
+        month: int,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> MonthlyReport:
         if year < 2000 or year > 2100:
             raise bad_request("Año inválido")
 
@@ -57,25 +64,38 @@ class ReportService:
         # Mes en hora del consultorio, expresado en limites UTC reales.
         start_dt, end_dt = local_date_range_bounds_utc(start_date, end_date_exclusive, tz)
 
-        appt_total = self.appointments.count_between(organization_id, start_dt, end_dt)
+        appt_total = self.appointments.count_between(
+            organization_id, start_dt, end_dt, professional_id=professional_id,
+        )
         appt_attended = self.appointments.count_between(
-            organization_id, start_dt, end_dt, status=AppointmentStatus.ATTENDED,
+            organization_id, start_dt, end_dt,
+            status=AppointmentStatus.ATTENDED,
+            professional_id=professional_id,
         )
         appt_no_show = self.appointments.count_between(
-            organization_id, start_dt, end_dt, status=AppointmentStatus.NO_SHOW,
+            organization_id, start_dt, end_dt,
+            status=AppointmentStatus.NO_SHOW,
+            professional_id=professional_id,
         )
         appt_cancelled = self.appointments.count_between(
-            organization_id, start_dt, end_dt, status=AppointmentStatus.CANCELLED,
+            organization_id, start_dt, end_dt,
+            status=AppointmentStatus.CANCELLED,
+            professional_id=professional_id,
         )
 
-        private_total, private_count = self.payments.sum_paid_between(
-            organization_id, start_dt, end_dt,
-        )
+        if professional_id is not None:
+            private_total, private_count = self.payments.sum_paid_between_for_professional(
+                organization_id, professional_id, start_dt, end_dt,
+            )
+        else:
+            private_total, private_count = self.payments.sum_paid_between(
+                organization_id, start_dt, end_dt,
+            )
         insurance_total, insurance_count = self.claims.sum_collected_between(
-            organization_id, start_dt, end_dt,
+            organization_id, start_dt, end_dt, professional_id=professional_id,
         )
         insurance_services = self.claims.count_by_service_date_range(
-            organization_id, start_date, end_date_exclusive,
+            organization_id, start_date, end_date_exclusive, professional_id=professional_id,
         )
 
         return MonthlyReport(
@@ -94,8 +114,17 @@ class ReportService:
             total_collected=private_total + insurance_total,
         )
 
-    def monthly_report_rows(self, organization_id: uuid.UUID, year: int, month: int) -> list[dict[str, str]]:
-        report = self.get_monthly_report(organization_id, year, month)
+    def monthly_report_rows(
+        self,
+        organization_id: uuid.UUID,
+        year: int,
+        month: int,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> list[dict[str, str]]:
+        report = self.get_monthly_report(
+            organization_id, year, month, professional_id=professional_id,
+        )
         return [
             {"concepto": "Período", "valor": report.period_label},
             {"concepto": "Turnos totales", "valor": str(report.appointments_total)},

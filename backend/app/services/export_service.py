@@ -21,10 +21,16 @@ class ExportService:
     def export_patients(
         self,
         organization_id: uuid.UUID,
+        current_user,
         fmt: str,
     ) -> tuple[bytes, str, str]:
         result = PatientService(self.db).list_patients(
-            organization_id, page=1, page_size=5000, q=None, is_active=None,
+            organization_id,
+            current_user,
+            page=1,
+            page_size=5000,
+            q=None,
+            is_active=None,
         )
         rows = [
             {
@@ -65,6 +71,8 @@ class ExportService:
         self,
         organization_id: uuid.UUID,
         fmt: str,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[bytes, str, str]:
         from datetime import date
 
@@ -75,6 +83,7 @@ class ExportService:
         rows = []
         for claim, patient, insurance in repo.list_all_with_insurance_and_patient(
             organization_id,
+            professional_id=professional_id,
         ):
             pname = f"{patient.last_name}, {patient.first_name}"
             rows.append(
@@ -133,8 +142,12 @@ class ExportService:
         year: int,
         month: int,
         fmt: str,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[bytes, str, str]:
-        rows = ReportService(self.db).monthly_report_rows(organization_id, year, month)
+        rows = ReportService(self.db).monthly_report_rows(
+            organization_id, year, month, professional_id=professional_id,
+        )
         basename = f"reporte-{year}-{month:02d}"
         return self._encode(rows, fmt, basename)
 

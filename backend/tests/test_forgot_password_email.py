@@ -31,6 +31,8 @@ def test_forgot_password_raises_when_smtp_fails():
     mock_provider = MagicMock()
     mock_provider.send_sync.side_effect = RuntimeError("SMTP down")
 
+    service.reset_tokens.invalidate_unused_for_user = MagicMock()
+
     with (
         patch("app.services.auth_service.get_settings", return_value=mock_settings),
         patch("app.services.auth_service.get_email_provider", return_value=mock_provider),

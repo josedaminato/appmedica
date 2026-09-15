@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Link, Navigate } from "react-router-dom"
+import { Link, Navigate, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { usePlatformAuth } from "../PlatformAuthContext"
 
 export function PlatformLoginPage() {
   const { login, isAuthenticated, isLoading } = usePlatformAuth()
+  const navigate = useNavigate()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -34,7 +35,7 @@ export function PlatformLoginPage() {
     setLoading(true)
     try {
       await login(username.trim(), password)
-      window.location.href = PLATFORM_DASHBOARD_PATH
+      navigate(PLATFORM_DASHBOARD_PATH, { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "No se pudo iniciar sesión")
     } finally {

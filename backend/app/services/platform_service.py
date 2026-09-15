@@ -28,6 +28,7 @@ from app.schemas.platform import (
     PlatformDiagnosticsResponse,
     PlatformLoginRequest,
     PlatformMarkPaidResponse,
+    PlatformMeResponse,
     PlatformOpsEvent,
     PlatformTenantRow,
 )
@@ -79,6 +80,10 @@ class PlatformService:
             extra_claims={"role": PLATFORM_ADMIN_ROLE},
         )
         return PlatformAuthResponse(access_token=token, username=data.username)
+
+    def me(self) -> PlatformMeResponse:
+        settings = get_settings()
+        return PlatformMeResponse(username=settings.platform_admin_username)
 
     def dashboard(self) -> PlatformDashboardResponse:
         orgs = self.db.scalars(select(Organization).order_by(Organization.created_at.desc())).all()

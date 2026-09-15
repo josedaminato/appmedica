@@ -36,6 +36,15 @@ export function platformLogin(username: string, password: string) {
   })
 }
 
+export interface PlatformMe {
+  username: string
+  role: string
+}
+
+export function getPlatformMe() {
+  return platformApiRequest<PlatformMe>("/platform/me")
+}
+
 export function getPlatformDashboard() {
   return platformApiRequest<PlatformDashboard>("/platform/dashboard")
 }

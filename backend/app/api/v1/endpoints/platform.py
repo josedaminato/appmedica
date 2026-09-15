@@ -10,6 +10,7 @@ from app.schemas.platform import (
     PlatformDiagnosticsResponse,
     PlatformLoginRequest,
     PlatformMarkPaidResponse,
+    PlatformMeResponse,
 )
 from app.services.platform_service import PlatformAdmin, PlatformService
 from app.core.dependencies import DbSession
@@ -21,6 +22,11 @@ router = APIRouter(prefix="/platform", tags=["platform"])
 @limiter.limit(login_limit)
 def platform_login(request: Request, data: PlatformLoginRequest, db: DbSession) -> PlatformAuthResponse:
     return PlatformService(db).login(data)
+
+
+@router.get("/me", response_model=PlatformMeResponse)
+def platform_me(_admin: PlatformAdmin, db: DbSession) -> PlatformMeResponse:
+    return PlatformService(db).me()
 
 
 @router.get("/dashboard", response_model=PlatformDashboardResponse)

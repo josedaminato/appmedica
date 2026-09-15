@@ -46,13 +46,15 @@ def test_monthly_report_aggregates(db):
     start_dt = datetime(2026, 6, 1, 3, 0, tzinfo=timezone.utc)
     end_dt = datetime(2026, 7, 1, 3, 0, tzinfo=timezone.utc)
     pay_repo.sum_paid_between.assert_called_once_with(org_id, start_dt, end_dt)
-    claim_repo.sum_collected_between.assert_called_once_with(org_id, start_dt, end_dt)
+    claim_repo.sum_collected_between.assert_called_once_with(
+        org_id, start_dt, end_dt, professional_id=None,
+    )
     claim_repo.count_by_service_date_range.assert_called_once_with(
-        org_id, date(2026, 6, 1), date(2026, 7, 1),
+        org_id, date(2026, 6, 1), date(2026, 7, 1), professional_id=None,
     )
 
     appt_repo.count_between.assert_any_call(
-        org_id, start_dt, end_dt, status=AppointmentStatus.ATTENDED,
+        org_id, start_dt, end_dt, status=AppointmentStatus.ATTENDED, professional_id=None,
     )
 
 
@@ -60,3 +62,29 @@ def test_monthly_report_rejects_invalid_month(db):
     service = ReportService(db)
     with pytest.raises(AppException):
         service.get_monthly_report(uuid.uuid4(), 2026, 13)
+
+
+def test_monthly_report_uses_professional_payment_sum(db):
+    org_id = uuid.uuid4()
+    professional_id = uuid.uuid4()
+    service = ReportService(db)
+    service.organizations.get_by_id = MagicMock(return_value=None)
+    service.appointments.count_between = MagicMock(return_value=1)
+    service.payments.sum_paid_between = MagicMock()
+    service.payments.sum_paid_between_for_professional = MagicMock(
+        return_value=(Decimal("10000"), 1),
+    )
+    service.claims.sum_collected_between = MagicMock(return_value=(Decimal("0"), 0))
+    service.claims.count_by_service_date_range = MagicMock(return_value=0)
+
+    report = service.get_monthly_report(
+        org_id, 2026, 6, professional_id=professional_id,
+    )
+
+    assert report.appointments_total == 1
+    assert report.private_collected_total == Decimal("10000")
+    service.payments.sum_paid_between_for_professional.assert_called_once()
+    service.payments.sum_paid_between.assert_not_called()
+    service.claims.sum_collected_between.assert_called_once()
+    _, kwargs = service.claims.sum_collected_between.call_args
+    assert kwargs["professional_id"] == professional_id

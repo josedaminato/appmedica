@@ -133,6 +133,10 @@ def test_platform_login_and_dashboard(platform_client: TestClient, db_session: S
     assert login.status_code == 200
     token = login.json()["access_token"]
 
+    me = platform_client.get("/api/v1/platform/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert me.json()["username"] == "daminato88"
+
     dash = platform_client.get("/api/v1/platform/dashboard", headers={"Authorization": f"Bearer {token}"})
     assert dash.status_code == 200
     body = dash.json()

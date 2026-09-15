@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     appointments,
     auth,
     calendar,
+    consultations,
     dashboard,
     dashboard_alerts,
     exports,
@@ -30,6 +31,7 @@ api_router.include_router(users.router)
 api_router.include_router(organizations.router)
 api_router.include_router(patients.router)
 api_router.include_router(appointments.router)
+api_router.include_router(consultations.router)
 api_router.include_router(calendar.router)
 api_router.include_router(health_insurances.router)
 api_router.include_router(insurance_claims.router)

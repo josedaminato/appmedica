@@ -265,7 +265,7 @@ class DailyAgendaDigestService:
         )
 
         try:
-            return await self.email.send(
+            result = await self.email.send(
                 ReminderPayload(
                     patient_name=user.full_name,
                     message=body,
@@ -273,6 +273,7 @@ class DailyAgendaDigestService:
                     subject=subject,
                 ),
             )
+            return result.ok
         except Exception:
             logger.exception("Error enviando resumen diario a %s", user.email)
             return False

@@ -29,6 +29,7 @@ def list_insurance_claims(
         raise bad_request("min_days debe ser 45, 60 o 90")
     return InsuranceClaimService(db).list_claims(
         current_user.organization_id,
+        current_user,
         page=page,
         page_size=page_size,
         status=status,
@@ -44,7 +45,9 @@ def get_insurance_claim(
     current_user: CurrentUser,
     db: DbSession,
 ) -> InsuranceClaimListItem:
-    return InsuranceClaimService(db).get_claim(current_user.organization_id, claim_id)
+    return InsuranceClaimService(db).get_claim(
+        current_user.organization_id, claim_id, current_user,
+    )
 
 
 @router.patch("/{claim_id}", response_model=InsuranceClaimListItem)

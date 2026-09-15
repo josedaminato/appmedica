@@ -118,7 +118,7 @@ def test_create_patient_rejects_foreign_insurance(db_session):
         health_insurance_id=insurance_b.id,
     )
     with pytest.raises(AppException) as exc:
-        PatientService(db_session).create_patient(org_a.id, data)
+        PatientService(db_session).create_patient(org_a.id, data, owner_a)
     assert exc.value.status_code == 404
 
 
@@ -129,5 +129,6 @@ def test_update_patient_rejects_foreign_insurance(db_session):
             org_a.id,
             patient_a.id,
             PatientUpdate(health_insurance_id=insurance_b.id),
+            owner_a,
         )
     assert exc.value.status_code == 404

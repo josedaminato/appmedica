@@ -19,6 +19,8 @@ from app.schemas.appointment import (
 from app.schemas.common import MessageResponse
 from app.services.appointment_closure_service import AppointmentClosureService
 from app.services.appointment_service import AppointmentService
+from app.services.consultation_service import ConsultationService
+from app.schemas.consultation import ConsultationResponse
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -182,5 +184,35 @@ def add_payment_to_appointment(
         current_user.organization_id,
         appointment_id,
         data,
+        current_user,
+    )
+
+
+@router.get("/{appointment_id}/consultation", response_model=ConsultationResponse)
+def get_appointment_consultation(
+    appointment_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ConsultationResponse:
+    return ConsultationService(db).get_by_appointment(
+        current_user.organization_id,
+        appointment_id,
+        current_user,
+    )
+
+
+@router.post(
+    "/{appointment_id}/consultation",
+    response_model=ConsultationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_appointment_consultation(
+    appointment_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> ConsultationResponse:
+    return ConsultationService(db).create_for_appointment(
+        current_user.organization_id,
+        appointment_id,
         current_user,
     )

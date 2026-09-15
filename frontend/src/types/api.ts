@@ -51,6 +51,59 @@ export interface PaginatedResponse<T> {
   meta: PaginationMeta
 }
 
+export type ConsultationStatus = "draft" | "finalized"
+
+export interface Consultation {
+  id: string
+  organization_id: string
+  appointment_id: string | null
+  patient_id: string
+  professional_id: string
+  professional_name: string | null
+  professional_name_snapshot: string | null
+  professional_license_snapshot: string | null
+  amends_id: string | null
+  amend_reason: string | null
+  occurred_at: string | null
+  reason: string | null
+  evolution: string | null
+  diagnosis: string | null
+  indications: string | null
+  status: ConsultationStatus
+  created_by: string
+  updated_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ConsultationListItem {
+  id: string
+  appointment_id: string | null
+  professional_id: string
+  professional_name: string | null
+  appointment_start_at: string | null
+  amends_id: string | null
+  amend_reason: string | null
+  occurred_at: string | null
+  reason: string | null
+  evolution: string | null
+  diagnosis: string | null
+  status: ConsultationStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface PatientClinicalProfile {
+  patient_id: string
+  medical_history: string | null
+  allergies: string | null
+  current_medications: string | null
+  clinical_notes: string | null
+  clinical_updated_by: string | null
+  clinical_updated_by_name: string | null
+  clinical_updated_at: string | null
+}
+
 export interface Patient {
   id: string
   organization_id: string
@@ -63,6 +116,10 @@ export interface Patient {
   health_insurance_id: string | null
   affiliate_number: string | null
   notes: string | null
+  medical_history?: string | null
+  allergies?: string | null
+  current_medications?: string | null
+  clinical_notes?: string | null
   is_active: boolean
   created_at: string
   updated_at: string

@@ -5,7 +5,8 @@ from pathlib import Path
 # `python scripts/seed_demo.py` no incluye /app en sys.path (p. ej. Docker)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.core.security import hash_password
+from app.core.config import get_settings
+from app.core.security import hash_password, verify_password
 from app.db.session import SessionLocal
 from app.models.enums import UserRole
 from app.models.organization import Organization
@@ -37,7 +38,13 @@ def main() -> int:
         user = users.get_by_email(DEMO_EMAIL)
         if user:
             org = orgs.get_by_id(user.organization_id)
-            print(f"OK demo ya existe: {DEMO_EMAIL} ({org.name if org else 'sin org'})")
+            settings = get_settings()
+            if settings.app_env.lower() != "production" and not verify_password(DEMO_PASSWORD, user.password_hash):
+                user.password_hash = hash_password(DEMO_PASSWORD)
+                db.commit()
+                print(f"OK demo password sincronizado: {DEMO_EMAIL} / {DEMO_PASSWORD}")
+            else:
+                print(f"OK demo ya existe: {DEMO_EMAIL} ({org.name if org else 'sin org'})")
         else:
             org = Organization(name=DEMO_ORG, slug="consultorio-demo", **organization_billing_kwargs())
             orgs.create(org)

@@ -59,8 +59,19 @@ class ReminderChannel(str, enum.Enum):
     EMAIL = "email"
 
 
+class ReminderKind(str, enum.Enum):
+    APPOINTMENT_REMINDER_24H = "appointment_reminder_24h"
+
+
 class ReminderStatus(str, enum.Enum):
     SCHEDULED = "scheduled"
+    SENDING = "sending"
     SENT = "sent"
     FAILED = "failed"
+    SKIPPED = "skipped"
     CANCELLED = "cancelled"
+
+
+class ConsultationStatus(str, enum.Enum):
+    DRAFT = "draft"
+    FINALIZED = "finalized"

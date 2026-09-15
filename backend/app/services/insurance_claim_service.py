@@ -4,8 +4,9 @@ from datetime import date, datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import bad_request, not_found
-from app.core.rbac import assert_can_access_appointment
-from app.models.enums import AppointmentClosureStatus, InsuranceClaimStatus
+from app.core.rbac import assert_can_access_appointment, forbidden, resolve_professional_filter
+from app.models.enums import AppointmentClosureStatus, InsuranceClaimStatus, UserRole
+from app.models.insurance_claim import InsuranceClaim
 from app.models.user import User
 from app.repositories.appointment_repository import AppointmentRepository
 from app.repositories.insurance_claim_repository import InsuranceClaimRepository
@@ -26,6 +27,7 @@ class InsuranceClaimService:
     def list_claims(
         self,
         organization_id: uuid.UUID,
+        current_user: User,
         *,
         page: int,
         page_size: int,
@@ -34,6 +36,7 @@ class InsuranceClaimService:
         open_only: bool = False,
         min_days: int | None = None,
     ) -> PaginatedResponse[InsuranceClaimListItem]:
+        professional_id = resolve_professional_filter(current_user, None)
         rows, total = self.repo.list_paginated(
             organization_id,
             page=page,
@@ -42,6 +45,7 @@ class InsuranceClaimService:
             health_insurance_id=health_insurance_id,
             open_only=open_only,
             min_days=min_days,
+            professional_id=professional_id,
         )
         today = date.today()
         items = [
@@ -54,10 +58,14 @@ class InsuranceClaimService:
         )
 
     def get_claim(
-        self, organization_id: uuid.UUID, claim_id: uuid.UUID,
+        self,
+        organization_id: uuid.UUID,
+        claim_id: uuid.UUID,
+        current_user: User,
     ) -> InsuranceClaimListItem:
         row = self._get_row(organization_id, claim_id)
         claim, patient, insurance = row
+        self._assert_can_access_claim(current_user, organization_id, claim)
         return self._to_list_item(claim, patient, insurance, date.today())
 
     def update_claim(
@@ -68,12 +76,7 @@ class InsuranceClaimService:
         current_user: User,
     ) -> InsuranceClaimListItem:
         claim, patient, insurance = self._get_row(organization_id, claim_id)
-        if claim.appointment_id is not None:
-            appointment = self.appointments.get_by_id(
-                organization_id, claim.appointment_id,
-            )
-            if appointment is not None:
-                assert_can_access_appointment(current_user, appointment)
+        self._assert_can_access_claim(current_user, organization_id, claim)
         updates = data.model_dump(exclude_unset=True)
         now = datetime.now(timezone.utc)
         previous_status = claim.status
@@ -123,6 +126,26 @@ class InsuranceClaimService:
 
         self.db.refresh(claim)
         return self._to_list_item(claim, patient, insurance, date.today())
+
+    def _assert_can_access_claim(
+        self,
+        current_user: User,
+        organization_id: uuid.UUID,
+        claim: InsuranceClaim,
+    ) -> None:
+        """Professional: solo reclamos de sus turnos. Owner/staff: org-wide.
+
+        Un reclamo sin turno (o cuyo turno ya no está en la org) no tiene
+        relación suficiente para autorizar a un professional.
+        """
+        if current_user.role != UserRole.PROFESSIONAL:
+            return
+        if claim.appointment_id is None:
+            raise forbidden("Solo podés operar tus propios turnos")
+        appointment = self.appointments.get_by_id(organization_id, claim.appointment_id)
+        if appointment is None:
+            raise forbidden("Solo podés operar tus propios turnos")
+        assert_can_access_appointment(current_user, appointment)
 
     def _sync_appointment_paid_on_collected(
         self,

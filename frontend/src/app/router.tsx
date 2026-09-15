@@ -58,6 +58,9 @@ const ReportsPage = lazy(() =>
 const TeamPage = lazy(() =>
   import("@/features/users/pages/TeamPage").then((m) => ({ default: m.TeamPage })),
 )
+const AttentionPage = lazy(() =>
+  import("@/features/consultations/pages/AttentionPage").then((m) => ({ default: m.AttentionPage })),
+)
 const PlatformLoginPage = lazy(() =>
   import("@/features/platform/pages/PlatformLoginPage").then((m) => ({ default: m.PlatformLoginPage })),
 )
@@ -96,6 +99,8 @@ export function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route path="inicio" element={<DashboardPage />} />
+              <Route path="agenda/:appointmentId/atencion" element={<AttentionPage />} />
+              <Route path="/consultations/:consultationId" element={<AttentionPage />} />
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="agenda/resolver" element={<ResolveAppointmentsPage />} />
               <Route path="agenda/new" element={<NewAppointmentPage />} />

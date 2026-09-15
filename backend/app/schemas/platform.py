@@ -16,6 +16,11 @@ class PlatformAuthResponse(BaseModel):
     username: str
 
 
+class PlatformMeResponse(BaseModel):
+    username: str
+    role: str = "platform_admin"
+
+
 class PlatformTenantRow(BaseModel):
     id: uuid.UUID
     name: str

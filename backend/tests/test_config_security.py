@@ -70,9 +70,25 @@ def test_production_accepts_strong_config():
         smtp_user="contacto@daminatoweb.com",
         smtp_password="real-password-not-placeholder",
         smtp_from_email="contacto@daminatoweb.com",
+        platform_admin_username="ops-admin",
+        platform_admin_password="Str0ng-Ops-Pass-9182",
     )
     assert settings.is_production is True
     assert settings.jwt_secret == STRONG_SECRET
+
+
+def test_production_rejects_missing_platform_admin():
+    with pytest.raises(ValueError, match="PLATFORM_ADMIN"):
+        _settings(
+            reminder_background_loop=False,
+            email_provider="smtp",
+            smtp_host="smtp.hostinger.com",
+            smtp_user="contacto@daminatoweb.com",
+            smtp_password="real-password-not-placeholder",
+            smtp_from_email="contacto@daminatoweb.com",
+            platform_admin_username="",
+            platform_admin_password="",
+        )
 
 
 def test_development_allows_defaults():

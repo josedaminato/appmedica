@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { QueryErrorState } from "@/components/shared/QueryErrorState"
 import { AppointmentStatusBadge, ClosureStatusBadge } from "@/components/shared/StatusBadge"
-import { formatDate, formatMoney, formatTime } from "@/lib/format"
+import { formatDate, formatDateTime, formatMoney, formatTime } from "@/lib/format"
 import type { InsuranceClaim, PatientPendingPayment } from "@/types/api"
 import { ApiError } from "@/lib/api-client"
 import { useRoleScope } from "@/hooks/use-role-scope"
@@ -16,14 +16,26 @@ import { PatientFormDialog } from "../components/PatientFormDialog"
 import * as patientsApi from "../api"
 import * as consultationApi from "@/features/consultations/api"
 import { ClinicalProfileEditDialog } from "@/features/consultations/components/ClinicalProfileEditDialog"
+import { ClinicalTimeline } from "@/features/consultations/components/ClinicalTimeline"
+import { canCreateStandaloneClinicalNote } from "@/features/consultations/consultationPresentation"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function PatientDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { isStaff } = useRoleScope()
+  const { isStaff, role } = useRoleScope()
   const [editOpen, setEditOpen] = useState(false)
   const [clinicalEditOpen, setClinicalEditOpen] = useState(false)
+  const [noteOpen, setNoteOpen] = useState(false)
+  const [noteOccurredAt, setNoteOccurredAt] = useState("")
   const [error, setError] = useState("")
 
   const { data: patient, isLoading, isError, error: queryError, refetch } = useQuery({
@@ -38,17 +50,35 @@ export function PatientDetailPage() {
     enabled: !!id,
   })
 
-  const { data: clinical } = useQuery({
+  const {
+    data: clinical,
+    isError: clinicalIsError,
+    error: clinicalQueryError,
+  } = useQuery({
     queryKey: ["patient-clinical", id],
     queryFn: () => consultationApi.getPatientClinical(id!),
     enabled: !!id && !isStaff,
+    retry: false,
+  })
+  const clinicalForbidden =
+    clinicalQueryError instanceof ApiError && clinicalQueryError.status === 403
+  const canEditClinical = !clinicalIsError
+  const canCreateStandaloneNote = canCreateStandaloneClinicalNote({
+    role,
+    clinicalForbidden,
   })
 
-  const { data: consultations = [] } = useQuery({
+  const {
+    data: consultations = [],
+    error: consultationsQueryError,
+  } = useQuery({
     queryKey: ["patient-consultations", id],
     queryFn: () => consultationApi.listPatientConsultations(id!),
     enabled: !!id && !isStaff,
+    retry: false,
   })
+  const consultationsForbidden =
+    consultationsQueryError instanceof ApiError && consultationsQueryError.status === 403
 
   const updateMutation = useMutation({
     mutationFn: (payload: patientsApi.PatientPayload) =>
@@ -80,6 +110,21 @@ export function PatientDetailPage() {
       setClinicalEditOpen(false)
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Error al guardar"),
+  })
+
+  const createNote = useMutation({
+    mutationFn: () =>
+      consultationApi.createPatientConsultation(
+        id!,
+        noteOccurredAt ? { occurred_at: new Date(noteOccurredAt).toISOString() } : {},
+      ),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["patient-consultations", id] })
+      setNoteOpen(false)
+      setNoteOccurredAt("")
+      navigate(`/consultations/${created.id}`)
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Error al crear la nota clínica"),
   })
 
   if (isLoading) return <LoadingSkeleton rows={4} />
@@ -202,44 +247,52 @@ export function PatientDetailPage() {
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Información clínica</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setClinicalEditOpen(true)}>
-                Editar
-              </Button>
+              {canEditClinical && (
+                <Button variant="outline" size="sm" onClick={() => setClinicalEditOpen(true)}>
+                  Editar
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 text-sm">
-              <ClinicalInfo label="Antecedentes" value={clinical?.medical_history} />
-              <ClinicalInfo label="Alergias" value={clinical?.allergies} />
-              <ClinicalInfo label="Medicación habitual" value={clinical?.current_medications} />
-              <ClinicalInfo label="Observaciones clínicas" value={clinical?.clinical_notes} className="sm:col-span-2" />
+              {clinicalForbidden ? (
+                <p className="text-sm text-muted-foreground sm:col-span-2">
+                  No tenés acceso a la información clínica de este paciente.
+                </p>
+              ) : (
+                <>
+                  <ClinicalInfo label="Antecedentes" value={clinical?.medical_history} />
+                  <ClinicalInfo label="Alergias" value={clinical?.allergies} />
+                  <ClinicalInfo label="Medicación habitual" value={clinical?.current_medications} />
+                  <ClinicalInfo label="Observaciones clínicas" value={clinical?.clinical_notes} className="sm:col-span-2" />
+                  {clinical?.clinical_updated_at && (
+                    <p className="text-xs text-muted-foreground sm:col-span-2">
+                      Última actualización
+                      {clinical.clinical_updated_by_name ? ` · ${clinical.clinical_updated_by_name}` : ""}
+                      {" · "}
+                      {formatDateTime(clinical.clinical_updated_at)}
+                    </p>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card className="mb-6" id="historia-clinica">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle className="text-base">Historia clínica</CardTitle>
+              {canCreateStandaloneNote && (
+                <Button size="sm" onClick={() => setNoteOpen(true)}>
+                  Nueva nota clínica
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              {consultations.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin consultas registradas</p>
+              {consultationsForbidden ? (
+                <p className="text-sm text-muted-foreground">
+                  No tenés acceso a la historia clínica de este paciente.
+                </p>
               ) : (
-                <ul className="space-y-3">
-                  {consultations.map((c) => (
-                    <li key={c.id} className="flex justify-between items-start gap-3 border-b pb-3 last:border-0">
-                      <div>
-                        <p className="text-sm font-medium">
-                          {c.appointment_start_at ? formatDate(c.appointment_start_at) : formatDate(c.created_at)}
-                          {" · Consulta"}
-                        </p>
-                        <p className="text-sm">{c.diagnosis || c.reason || "—"}</p>
-                      </div>
-                      {c.status === "finalized" && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/agenda/${c.appointment_id}/atencion`}>Ver consulta</Link>
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <ClinicalTimeline items={consultations} />
               )}
             </CardContent>
           </Card>
@@ -322,6 +375,32 @@ export function PatientDetailPage() {
           loading={updateClinical.isPending}
         />
       )}
+
+      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nueva nota clínica</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se crea un borrador en la historia clínica del paciente, sin turno de agenda.
+          </p>
+          <div className="space-y-2">
+            <Label htmlFor="note-occurred-at">Fecha y hora (opcional)</Label>
+            <Input
+              id="note-occurred-at"
+              type="datetime-local"
+              value={noteOccurredAt}
+              onChange={(e) => setNoteOccurredAt(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setNoteOpen(false)}>Cancelar</Button>
+            <Button onClick={() => createNote.mutate()} disabled={createNote.isPending}>
+              Crear borrador
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

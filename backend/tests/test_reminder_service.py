@@ -4,8 +4,6 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-import pytest
-
 from zoneinfo import ZoneInfo
 
 from app.core.timezone import org_timezone
@@ -16,32 +14,32 @@ from app.models.patient import Patient
 from app.services.reminder_service import ReminderService
 
 
-@pytest.mark.asyncio
 async def test_process_due_jobs_passes_organization_id_to_repository():
     org_id = uuid4()
     db = MagicMock()
     service = ReminderService(db)
     service.reminders = MagicMock()
-    service.reminders.list_due.return_value = []
+    service.reminders.recover_orphan_sending.return_value = 0
+    service.reminders.lock_due_job.return_value = None
 
     await service.process_due_jobs(organization_id=org_id)
 
-    service.reminders.list_due.assert_called_once()
-    _, kwargs = service.reminders.list_due.call_args
+    service.reminders.lock_due_job.assert_called_once()
+    _, kwargs = service.reminders.lock_due_job.call_args
     assert kwargs["organization_id"] == org_id
     assert isinstance(kwargs["before"], datetime)
 
 
-@pytest.mark.asyncio
 async def test_process_due_jobs_without_organization_processes_all():
     db = MagicMock()
     service = ReminderService(db)
     service.reminders = MagicMock()
-    service.reminders.list_due.return_value = []
+    service.reminders.recover_orphan_sending.return_value = 0
+    service.reminders.lock_due_job.return_value = None
 
     await service.process_due_jobs()
 
-    _, kwargs = service.reminders.list_due.call_args
+    _, kwargs = service.reminders.lock_due_job.call_args
     assert kwargs["organization_id"] is None
 
 

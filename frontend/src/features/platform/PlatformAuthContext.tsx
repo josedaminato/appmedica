@@ -23,8 +23,8 @@ export function PlatformAuthProvider({ children }: { children: React.ReactNode }
       return
     }
     platformApi
-      .getPlatformDashboard()
-      .then(() => setUsername(localStorage.getItem(PLATFORM_USERNAME_KEY)))
+      .getPlatformMe()
+      .then((me) => setUsername(me.username))
       .catch(() => {
         localStorage.removeItem(PLATFORM_TOKEN_KEY)
         localStorage.removeItem(PLATFORM_USERNAME_KEY)

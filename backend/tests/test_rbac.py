@@ -8,13 +8,16 @@ from types import SimpleNamespace
 
 from app.core.rbac import (
     assert_can_access_appointment,
+    assert_can_create_standalone_consultation,
     assert_can_delete,
+    assert_can_modify_consultation,
+    assert_can_read_consultation,
     assert_owner,
     forbidden,
     resolve_professional_filter,
 )
 from app.core.exceptions import AppException
-from app.models.enums import UserRole
+from app.models.enums import ConsultationStatus, UserRole
 from app.models.user import User
 
 
@@ -87,3 +90,41 @@ def test_staff_can_access_any_appointment():
     staff = _user(UserRole.STAFF)
     appt = SimpleNamespace(professional_id=uuid4())
     assert_can_access_appointment(staff, appt)  # no raise
+
+
+def test_professional_reads_own_and_colleague_finalized_with_relationship():
+    prof = _user(UserRole.PROFESSIONAL)
+    own = SimpleNamespace(professional_id=prof.id, status=ConsultationStatus.DRAFT)
+    assert_can_read_consultation(prof, own, has_relationship=True)
+    colleague_finalized = SimpleNamespace(
+        professional_id=uuid4(), status=ConsultationStatus.FINALIZED,
+    )
+    assert_can_read_consultation(prof, colleague_finalized, has_relationship=True)
+
+
+def test_professional_cannot_read_colleague_draft():
+    prof = _user(UserRole.PROFESSIONAL)
+    colleague_draft = SimpleNamespace(professional_id=uuid4(), status=ConsultationStatus.DRAFT)
+    with pytest.raises(AppException) as exc:
+        assert_can_read_consultation(prof, colleague_draft, has_relationship=True)
+    assert exc.value.status_code == 403
+
+
+def test_professional_cannot_modify_colleague_consultation():
+    prof = _user(UserRole.PROFESSIONAL)
+    colleague = SimpleNamespace(professional_id=uuid4(), status=ConsultationStatus.FINALIZED)
+    with pytest.raises(AppException) as exc:
+        assert_can_modify_consultation(prof, colleague)
+    assert exc.value.status_code == 403
+
+
+def test_assert_can_create_standalone_consultation_allows_professional_and_owner():
+    assert_can_create_standalone_consultation(_user(UserRole.PROFESSIONAL))
+    assert_can_create_standalone_consultation(_user(UserRole.OWNER))
+
+
+def test_assert_can_create_standalone_consultation_blocks_staff():
+    with pytest.raises(AppException) as exc:
+        assert_can_create_standalone_consultation(_user(UserRole.STAFF))
+    assert exc.value.status_code == 403
+

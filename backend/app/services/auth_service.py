@@ -114,6 +114,7 @@ class AuthService:
         if not user:
             return message
 
+        self.reset_tokens.invalidate_unused_for_user(user.id)
         raw_token = secrets.token_urlsafe(32)
         token = PasswordResetToken(
             user_id=user.id,

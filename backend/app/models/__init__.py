@@ -8,6 +8,7 @@ from app.models.payment import Payment
 from app.models.insurance_claim import InsuranceClaim
 from app.models.reminder import ReminderJob
 from app.models.daily_digest_log import DailyDigestLog
+from app.models.consultation import Consultation
 
 __all__ = [
     "Organization",
@@ -20,4 +21,5 @@ __all__ = [
     "ReminderJob",
     "DailyDigestLog",
     "PasswordResetToken",
+    "Consultation",
 ]

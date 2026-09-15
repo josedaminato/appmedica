@@ -339,6 +339,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         *,
         upcoming_only: bool = False,
         limit: int = 10,
+        professional_id: uuid.UUID | None = None,
     ) -> list[Appointment]:
         now = datetime.now(timezone.utc)
         stmt = self._with_relations(
@@ -348,6 +349,8 @@ class AppointmentRepository(BaseRepository[Appointment]):
                 Appointment.status != AppointmentStatus.RESCHEDULED,
             ),
         )
+        if professional_id is not None:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         if upcoming_only:
             stmt = stmt.where(
                 Appointment.start_at >= now,
@@ -358,13 +361,21 @@ class AppointmentRepository(BaseRepository[Appointment]):
         stmt = stmt.limit(limit)
         return list(self.db.scalars(stmt).unique().all())
 
-    def count_no_shows(self, organization_id: uuid.UUID, patient_id: uuid.UUID | None = None) -> int:
+    def count_no_shows(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID | None = None,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> int:
         stmt = select(func.count()).select_from(Appointment).where(
             Appointment.organization_id == organization_id,
             Appointment.status == AppointmentStatus.NO_SHOW,
         )
         if patient_id:
             stmt = stmt.where(Appointment.patient_id == patient_id)
+        if professional_id is not None:
+            stmt = stmt.where(Appointment.professional_id == professional_id)
         return self.db.scalar(stmt) or 0
 
     def count_no_shows_since(
@@ -393,6 +404,7 @@ class AppointmentRepository(BaseRepository[Appointment]):
         end: datetime,
         *,
         status: AppointmentStatus | None = None,
+        professional_id: uuid.UUID | None = None,
     ) -> int:
         """Cuenta turnos en [start, end) por instante UTC (no por fecha UTC)."""
         conditions = [
@@ -403,6 +415,8 @@ class AppointmentRepository(BaseRepository[Appointment]):
         ]
         if status is not None:
             conditions.append(Appointment.status == status)
+        if professional_id is not None:
+            conditions.append(Appointment.professional_id == professional_id)
         stmt = select(func.count()).select_from(Appointment).where(*conditions)
         return self.db.scalar(stmt) or 0
 
@@ -430,6 +444,23 @@ class AppointmentRepository(BaseRepository[Appointment]):
             .order_by(Appointment.start_at.asc()),
         )
         return list(self.db.scalars(stmt).unique().all())
+
+    def exists_professional_patient(
+        self,
+        organization_id: uuid.UUID,
+        professional_id: uuid.UUID,
+        patient_id: uuid.UUID,
+    ) -> bool:
+        stmt = (
+            select(Appointment.id)
+            .where(
+                Appointment.organization_id == organization_id,
+                Appointment.professional_id == professional_id,
+                Appointment.patient_id == patient_id,
+            )
+            .limit(1)
+        )
+        return self.db.scalar(stmt) is not None
 
     def create(self, appointment: Appointment) -> Appointment:
         self.db.add(appointment)

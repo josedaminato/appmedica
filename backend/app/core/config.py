@@ -124,6 +124,14 @@ class Settings(BaseSettings):
             if "CAMBIAR" in (self.smtp_password or ""):
                 problems.append("SMTP_PASSWORD todavía tiene el valor de ejemplo (CAMBIAR...).")
 
+        if not self.platform_admin_username or not self.platform_admin_password:
+            problems.append(
+                "PLATFORM_ADMIN_USERNAME y PLATFORM_ADMIN_PASSWORD requeridos en producción "
+                "(panel /interno)."
+            )
+        elif "CAMBIAR" in self.platform_admin_password:
+            problems.append("PLATFORM_ADMIN_PASSWORD todavía tiene el valor de ejemplo (CAMBIAR...).")
+
         if problems:
             raise ValueError(
                 "Configuración insegura para producción (APP_ENV=production):\n- "

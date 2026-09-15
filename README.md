@@ -42,6 +42,18 @@ Eso inicia la base de datos, el backend y el frontend. Luego abrí http://localh
 | Email    | `demo@consultorio.com`   |
 | Password | `demo12345`              |
 
+Entrá en http://localhost:5173/login con esas credenciales para probar el panel del consultorio.
+
+**Panel de operación** (solo vos, clientes y cobros del SaaS):
+
+| Campo    | Valor (desarrollo)       |
+|----------|--------------------------|
+| URL      | http://localhost:5173/interno |
+| Usuario  | `daminato88` (ver `PLATFORM_ADMIN_USERNAME` en `.env`) |
+| Password | ver `PLATFORM_ADMIN_PASSWORD` en `.env` |
+
+En producción, definí credenciales únicas en `backend/.env.prod` (no uses las de ejemplo).
+
 **Todo en Docker** (incluye frontend en contenedor):
 
 ```powershell

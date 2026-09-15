@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.appointment import Appointment
 from app.models.enums import InsuranceClaimStatus
 from app.models.health_insurance import HealthInsurance
 from app.models.insurance_claim import InsuranceClaim
@@ -15,6 +16,17 @@ from app.repositories.base import BaseRepository
 class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
     def __init__(self, db: Session) -> None:
         super().__init__(db, InsuranceClaim)
+
+    def _apply_professional_scope(self, stmt, organization_id: uuid.UUID, professional_id: uuid.UUID | None):
+        if professional_id is None:
+            return stmt
+        return stmt.join(
+            Appointment,
+            InsuranceClaim.appointment_id == Appointment.id,
+        ).where(
+            Appointment.organization_id == organization_id,
+            Appointment.professional_id == professional_id,
+        )
 
     def get_by_id(self, organization_id: uuid.UUID, claim_id: uuid.UUID) -> InsuranceClaim | None:
         stmt = select(InsuranceClaim).where(
@@ -51,12 +63,19 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         )
         return Decimal(str(self.db.scalar(stmt) or 0))
 
-    def sum_patient_insurance_debt(self, organization_id: uuid.UUID, patient_id: uuid.UUID) -> Decimal:
+    def sum_patient_insurance_debt(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> Decimal:
         stmt = select(func.coalesce(func.sum(InsuranceClaim.expected_amount), 0)).where(
             InsuranceClaim.organization_id == organization_id,
             InsuranceClaim.patient_id == patient_id,
             InsuranceClaim.status.in_(self._open_claim_statuses()),
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
         return Decimal(str(self.db.scalar(stmt) or 0))
 
     def count_pending(self, organization_id: uuid.UUID) -> int:
@@ -76,6 +95,7 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         health_insurance_id: uuid.UUID | None = None,
         open_only: bool = False,
         min_days: int | None = None,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[list[tuple[InsuranceClaim, Patient, HealthInsurance]], int]:
         base = (
             select(InsuranceClaim, Patient, HealthInsurance)
@@ -83,6 +103,7 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
             .where(InsuranceClaim.organization_id == organization_id)
         )
+        base = self._apply_professional_scope(base, organization_id, professional_id)
         if min_days is not None:
             cutoff = date.today() - timedelta(days=min_days)
             base = base.where(
@@ -116,19 +137,25 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         return rows, total
 
     def list_all_with_insurance(
-        self, organization_id: uuid.UUID,
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> list[tuple[InsuranceClaim, HealthInsurance]]:
         stmt = (
             select(InsuranceClaim, HealthInsurance)
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
             .where(InsuranceClaim.organization_id == organization_id)
-            .order_by(InsuranceClaim.service_date.desc())
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
+        stmt = stmt.order_by(InsuranceClaim.service_date.desc())
         return list(self.db.execute(stmt).all())
 
     def list_all_with_insurance_and_patient(
         self,
         organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> list[tuple[InsuranceClaim, Patient, HealthInsurance]]:
         """Una sola query para exportaciones (evita N+1 por paciente)."""
         stmt = (
@@ -136,8 +163,9 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
             .join(Patient, InsuranceClaim.patient_id == Patient.id)
             .join(HealthInsurance, InsuranceClaim.health_insurance_id == HealthInsurance.id)
             .where(InsuranceClaim.organization_id == organization_id)
-            .order_by(InsuranceClaim.service_date.desc())
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
+        stmt = stmt.order_by(InsuranceClaim.service_date.desc())
         return list(self.db.execute(stmt).all())
 
     def sum_collected_between(
@@ -145,6 +173,8 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         organization_id: uuid.UUID,
         start: datetime,
         end: datetime,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> tuple[Decimal, int]:
         stmt = select(
             func.coalesce(func.sum(InsuranceClaim.expected_amount), 0),
@@ -156,6 +186,7 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
             InsuranceClaim.collected_at >= start,
             InsuranceClaim.collected_at < end,
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
         row = self.db.execute(stmt).one()
         return Decimal(str(row[0] or 0)), int(row[1] or 0)
 
@@ -164,12 +195,22 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         organization_id: uuid.UUID,
         start_date: date,
         end_date_exclusive: date,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> int:
         stmt = select(func.count()).select_from(InsuranceClaim).where(
             InsuranceClaim.organization_id == organization_id,
             InsuranceClaim.service_date >= start_date,
             InsuranceClaim.service_date < end_date_exclusive,
         )
+        if professional_id is not None:
+            stmt = (
+                stmt.join(Appointment, InsuranceClaim.appointment_id == Appointment.id)
+                .where(
+                    Appointment.organization_id == organization_id,
+                    Appointment.professional_id == professional_id,
+                )
+            )
         return self.db.scalar(stmt) or 0
 
     def _open_claim_statuses(self) -> list[InsuranceClaimStatus]:
@@ -196,6 +237,8 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
         self,
         organization_id: uuid.UUID,
         patient_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> list[tuple[InsuranceClaim, HealthInsurance]]:
         """Mismos filtros que sum_patient_insurance_debt, con nombre de OS. Sin tope."""
         stmt = (
@@ -206,8 +249,9 @@ class InsuranceClaimRepository(BaseRepository[InsuranceClaim]):
                 InsuranceClaim.patient_id == patient_id,
                 InsuranceClaim.status.in_(self._open_claim_statuses()),
             )
-            .order_by(InsuranceClaim.service_date.desc(), InsuranceClaim.created_at.desc())
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
+        stmt = stmt.order_by(InsuranceClaim.service_date.desc(), InsuranceClaim.created_at.desc())
         return [(claim, insurance) for claim, insurance in self.db.execute(stmt).all()]
 
     def create(self, claim: InsuranceClaim) -> InsuranceClaim:

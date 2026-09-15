@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useLocation, useSearchParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Calendar,
   ChevronLeft,
   ChevronRight,
-  MessageCircle,
   MoreHorizontal,
   Plus,
   SlidersHorizontal,
@@ -51,7 +50,6 @@ import {
   isoToLocalDateParam,
   toDateParam,
 } from "@/lib/format"
-import { buildAppointmentReminderMessage, buildWhatsAppUrl } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 import { ApiError } from "@/lib/api-client"
 import type {
@@ -83,11 +81,14 @@ function readClosureParam(params: URLSearchParams): string {
   return "all"
 }
 import { listHealthInsurances } from "@/features/insurances/api"
+import { useAuth } from "@/features/auth/AuthContext"
 import { useRoleScope } from "@/hooks/use-role-scope"
 import { listTeam } from "@/features/users/api"
 import * as apptApi from "../api"
+import { buildAppointmentActions, type RowAction } from "../appointmentRowActions"
 import { AgendaDurationSettings } from "../components/AgendaDurationSettings"
 import { CalendarSyncDialog } from "../components/CalendarSyncDialog"
+import { AppointmentWhatsAppMenu } from "../components/AppointmentWhatsAppMenu"
 import { CloseAppointmentDialog } from "../components/CloseAppointmentDialog"
 import { AddPaymentDialog } from "../components/AddPaymentDialog"
 import {
@@ -112,7 +113,10 @@ function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
 export function AgendaPage() {
   const qc = useQueryClient()
   const location = useLocation()
-  const { lockedProfessionalId, canFilterByProfessional } = useRoleScope()
+  const { user } = useAuth()
+  const orgName = user?.organization.name
+  const { lockedProfessionalId, canFilterByProfessional, isStaff } = useRoleScope()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialDate = searchParams.get("date")
   const initialStatus = searchParams.get("status")
@@ -248,10 +252,6 @@ export function AgendaPage() {
         setActionSuccess(message)
       }
       if (variables.action === "no_show") setActionSuccess("Marcado como ausente")
-      if (variables.action === "attend" && data && "status" in (data as object)) {
-        setActionSuccess("Paciente asistió — completá el cierre")
-        setCloseTarget(data as Appointment)
-      }
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Error en la acción")
@@ -301,6 +301,19 @@ export function AgendaPage() {
       setActionError(err instanceof ApiError ? err.message : "Error al registrar cobro")
     },
   })
+
+  async function handleAtender(appointment: Appointment) {
+    setActionError("")
+    try {
+      if (appointment.status === "pending" || appointment.status === "confirmed") {
+        await apptApi.attendAppointment(appointment.id)
+        invalidateAll(qc)
+      }
+      navigate(`/agenda/${appointment.id}/atencion`)
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : "Error al atender")
+    }
+  }
 
   const grouped = useMemo(() => {
     if (view === "day") return { [dateParam]: appointments }
@@ -479,7 +492,12 @@ export function AgendaPage() {
                   <AppointmentRow
                     key={a.id}
                     appointment={a}
+                    orgName={orgName}
                     onAction={(act) => {
+                      if (act === "atender") {
+                        void handleAtender(a)
+                        return
+                      }
                       if (act === "close") setCloseTarget(a)
                       else if (act === "payment") setPaymentTarget(a)
                       else if (act === "reschedule") setRescheduleTarget(a)
@@ -487,6 +505,7 @@ export function AgendaPage() {
                       else action.mutate({ id: a.id, action: act })
                     }}
                     actionPending={action.isPending}
+                    allowClinical={!isStaff}
                   />
                 ))}
               </div>
@@ -569,64 +588,6 @@ export function AgendaPage() {
   )
 }
 
-type RowAction = {
-  id: string
-  label: string
-  variant?: "default" | "secondary" | "outline" | "ghost" | "destructive"
-  href?: string
-  external?: boolean
-  primary?: boolean
-}
-
-function buildAppointmentActions(a: Appointment, needsClose: boolean): RowAction[] {
-  const actions: RowAction[] = []
-
-  if (a.patient?.phone && (a.status === "pending" || a.status === "confirmed")) {
-    actions.push({
-      id: "whatsapp",
-      label: "WhatsApp",
-      variant: "outline",
-      href: buildWhatsAppUrl(
-        a.patient.phone,
-        buildAppointmentReminderMessage(a.patient.first_name, a.start_at),
-      ),
-      external: true,
-    })
-  }
-  if (a.status === "pending") {
-    actions.push({ id: "confirm", label: "Confirmar", variant: "secondary", primary: true })
-  }
-  if (a.status === "pending" || a.status === "confirmed") {
-    actions.push({
-      id: "attend",
-      label: "Asistió",
-      primary: a.status === "confirmed",
-    })
-    actions.push({ id: "no_show", label: "Ausente", variant: "outline" })
-    actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost" })
-    actions.push({ id: "cancel", label: "Cancelar", variant: "ghost" })
-  }
-  if (a.status === "no_show") {
-    actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost", primary: true })
-  }
-  if (needsClose) {
-    actions.push({ id: "close", label: "Cerrar", primary: true })
-  }
-  if (a.closure_status === "pending" || a.closure_status === "partial") {
-    actions.push({
-      id: "payment",
-      label: "Cobrar",
-      variant: "outline",
-      primary: !needsClose && a.status !== "pending" && a.status !== "confirmed",
-    })
-  }
-
-  const withPrimary = actions.find((act) => act.primary)
-  if (!withPrimary && actions.length > 0) actions[0].primary = true
-
-  return actions
-}
-
 function ActionButton({
   action,
   disabled,
@@ -644,7 +605,6 @@ function ActionButton({
           target={action.external ? "_blank" : undefined}
           rel={action.external ? "noopener noreferrer" : undefined}
         >
-          {action.id === "whatsapp" && <MessageCircle className="h-3.5 w-3.5 mr-1" />}
           {action.label}
         </a>
       </Button>
@@ -665,12 +625,16 @@ function ActionButton({
 
 function AppointmentRow({
   appointment: a,
+  orgName,
   onAction,
   actionPending,
+  allowClinical,
 }: {
   appointment: Appointment
+  orgName?: string | null
   onAction: (action: string) => void
   actionPending: boolean
+  allowClinical: boolean
 }) {
   const needsClose = a.status === "attended" && a.closure_status === "none"
   const patientName = a.patient
@@ -685,7 +649,7 @@ function AppointmentRow({
         ? "border-red-500/20"
         : ""
 
-  const actions = buildAppointmentActions(a, needsClose)
+  const actions = buildAppointmentActions(a, needsClose, allowClinical)
   const primary = actions.find((act) => act.primary)
   const secondary = actions.filter((act) => act !== primary)
 
@@ -723,14 +687,16 @@ function AppointmentRow({
         </p>
       </div>
 
-      {actions.length > 0 && (
+      {(actions.length > 0 || a.patient?.phone) && (
         <>
-          <div className="hidden shrink-0 flex-wrap gap-1 sm:flex">
+          <div className="hidden shrink-0 flex-wrap items-center gap-1 sm:flex">
+            <AppointmentWhatsAppMenu appointment={a} orgName={orgName} />
             {actions.map((action) => (
               <ActionButton key={action.id} action={action} disabled={actionPending} onAction={onAction} />
             ))}
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:hidden">
+            <AppointmentWhatsAppMenu appointment={a} orgName={orgName} />
             {primary && (
               <ActionButton action={primary} disabled={actionPending} onAction={onAction} />
             )}

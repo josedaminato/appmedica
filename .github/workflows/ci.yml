@@ -11,12 +11,30 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: appmedica
+          POSTGRES_PASSWORD: appmedica_secret
+          POSTGRES_DB: appmedica_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U appmedica -d appmedica_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://appmedica:appmedica_secret@localhost:5432/appmedica_test
+      TEST_DATABASE_URL: postgresql+psycopg://appmedica:appmedica_secret@localhost:5432/appmedica_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt pytest pytest-cov pytest-asyncio
+      - run: alembic upgrade head
       - run: pytest tests -q
 
   frontend:

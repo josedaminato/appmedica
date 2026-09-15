@@ -1,4 +1,6 @@
+import html
 import logging
+import re
 import smtplib
 import ssl
 from email.mime.multipart import MIMEMultipart
@@ -6,32 +8,62 @@ from email.mime.text import MIMEText
 from email.utils import formataddr
 
 from app.core.config import Settings, get_settings
-from app.integrations.reminders.base import ReminderPayload, ReminderProvider
+from app.integrations.reminders.base import ReminderPayload, ReminderProvider, ReminderSendResult
 
 logger = logging.getLogger(__name__)
+
+_URL_RE = re.compile(r"(https?://[^\s<]+)")
+
+
+def message_to_html(plain: str) -> str:
+    """Convierte el cuerpo de texto a HTML seguro, con enlaces clicables."""
+    parts: list[str] = []
+    for line in plain.splitlines():
+        if not line.strip():
+            parts.append("<br/>")
+            continue
+        escaped = html.escape(line)
+        linked = _URL_RE.sub(r'<a href="\1">\1</a>', escaped)
+        parts.append(f"<p>{linked}</p>")
+    return (
+        "<html><body style='font-family:Arial,sans-serif;line-height:1.5;color:#222'>"
+        + "".join(parts)
+        + "</body></html>"
+    )
 
 
 class EmailReminderProvider(ReminderProvider):
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
-    async def send(self, payload: ReminderPayload) -> bool:
-        return self.send_sync(payload)
+    async def send(self, payload: ReminderPayload) -> ReminderSendResult:
+        if not payload.email:
+            logger.warning("Email reminder skipped: missing recipient")
+            return ReminderSendResult.failure(
+                retryable=False,
+                error_code="missing_contact",
+            )
+        try:
+            ok = self.send_sync(payload)
+        except Exception as exc:
+            return ReminderSendResult.failure(
+                retryable=True,
+                error_code="email_error",
+                error_message=type(exc).__name__,
+            )
+        if ok:
+            return ReminderSendResult.success()
+        return ReminderSendResult.failure(retryable=True, error_code="email_not_sent")
 
     def send_sync(self, payload: ReminderPayload) -> bool:
         """Envío síncrono (forgot-password, scripts). Evita asyncio.run en workers de uvicorn."""
         if not payload.email:
-            logger.warning("Email reminder skipped: sin dirección de email")
+            logger.warning("Email reminder skipped: missing recipient")
             return False
 
         provider = (self.settings.email_provider or "mock").lower()
         if provider == "mock":
-            logger.info(
-                "[MOCK EMAIL] Para: %s | Asunto: %s | %s",
-                payload.email,
-                payload.subject or "AppMedica",
-                payload.message[:200],
-            )
+            logger.info("[MOCK EMAIL] send ok")
             return True
 
         if provider == "disabled":
@@ -67,13 +99,8 @@ class EmailReminderProvider(ReminderProvider):
         msg["To"] = to_addr
         msg["Reply-To"] = from_addr
         plain = payload.message
-        html = (
-            "<html><body style='font-family:Arial,sans-serif;line-height:1.5;color:#222'>"
-            + "".join(f"<p>{line}</p>" if line.strip() else "<br/>" for line in plain.splitlines())
-            + "</body></html>"
-        )
         msg.attach(MIMEText(plain, "plain", "utf-8"))
-        msg.attach(MIMEText(html, "html", "utf-8"))
+        msg.attach(MIMEText(message_to_html(plain), "html", "utf-8"))
 
         def _do_send(server: smtplib.SMTP) -> None:
             server.sendmail(from_addr, [to_addr], msg.as_string())

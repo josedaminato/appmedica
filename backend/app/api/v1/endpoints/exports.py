@@ -24,14 +24,17 @@ def export_resource(
     org_id = current_user.organization_id
 
     if resource == "patients":
-        content, media, filename = service.export_patients(org_id, format)
+        content, media, filename = service.export_patients(org_id, current_user, format)
     elif resource == "payments":
         prof_filter = resolve_professional_filter(current_user, None)
         content, media, filename = service.export_payments(
             org_id, format, professional_id=prof_filter,
         )
     elif resource == "claims":
-        content, media, filename = service.export_claims(org_id, format)
+        prof_filter = resolve_professional_filter(current_user, None)
+        content, media, filename = service.export_claims(
+            org_id, format, professional_id=prof_filter,
+        )
     else:
         prof_filter = resolve_professional_filter(current_user, None)
         content, media, filename = service.export_debt(

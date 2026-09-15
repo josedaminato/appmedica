@@ -46,10 +46,17 @@ class PaymentRepository(BaseRepository[Payment]):
         )
         return Decimal(str(self.db.scalar(stmt) or 0))
 
-    def sum_patient_debt(self, organization_id: uuid.UUID, patient_id: uuid.UUID) -> Decimal:
+    def sum_patient_debt(
+        self,
+        organization_id: uuid.UUID,
+        patient_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> Decimal:
         stmt = select(func.coalesce(func.sum(Payment.amount), 0)).where(
             *self._patient_pending_debt_filters(organization_id, patient_id),
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
         return Decimal(str(self.db.scalar(stmt) or 0))
 
     def _patient_pending_debt_filters(self, organization_id: uuid.UUID, patient_id: uuid.UUID):
@@ -59,10 +66,23 @@ class PaymentRepository(BaseRepository[Payment]):
             Payment.status == PaymentStatus.PENDING,
         )
 
+    def _apply_professional_scope(self, stmt, organization_id: uuid.UUID, professional_id: uuid.UUID | None):
+        if professional_id is None:
+            return stmt
+        return stmt.outerjoin(
+            Appointment,
+            (Payment.appointment_id == Appointment.id)
+            & (Appointment.organization_id == organization_id),
+        ).where(
+            func.coalesce(Appointment.professional_id, Payment.professional_id) == professional_id,
+        )
+
     def list_pending_by_patient(
         self,
         organization_id: uuid.UUID,
         patient_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> list[tuple[Payment, Appointment | None, str | None]]:
         """Mismos filtros que sum_patient_debt: pending del paciente en la org."""
         professional = aliased(User)
@@ -80,8 +100,12 @@ class PaymentRepository(BaseRepository[Payment]):
                 ),
             )
             .where(*self._patient_pending_debt_filters(organization_id, patient_id))
-            .order_by(Appointment.start_at.asc(), Payment.created_at.asc())
         )
+        if professional_id is not None:
+            stmt = stmt.where(
+                func.coalesce(Appointment.professional_id, Payment.professional_id) == professional_id,
+            )
+        stmt = stmt.order_by(Appointment.start_at.asc(), Payment.created_at.asc())
         return [
             (payment, appointment, prof_name)
             for payment, appointment, prof_name in self.db.execute(stmt).all()
@@ -99,16 +123,15 @@ class PaymentRepository(BaseRepository[Payment]):
         organization_id: uuid.UUID,
         patient_id: uuid.UUID,
         limit: int = 10,
+        *,
+        professional_id: uuid.UUID | None = None,
     ) -> list[Payment]:
-        stmt = (
-            select(Payment)
-            .where(
-                Payment.organization_id == organization_id,
-                Payment.patient_id == patient_id,
-            )
-            .order_by(Payment.created_at.desc())
-            .limit(limit)
+        stmt = select(Payment).where(
+            Payment.organization_id == organization_id,
+            Payment.patient_id == patient_id,
         )
+        stmt = self._apply_professional_scope(stmt, organization_id, professional_id)
+        stmt = stmt.order_by(Payment.created_at.desc()).limit(limit)
         return list(self.db.scalars(stmt).all())
 
     def sum_paid_between(

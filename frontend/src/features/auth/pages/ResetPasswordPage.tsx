@@ -54,6 +54,17 @@ export function ResetPasswordPage() {
           <CardDescription>Ingresá tu nueva contraseña</CardDescription>
         </CardHeader>
         <CardContent>
+          {!token ? (
+            <div className="space-y-3 text-sm">
+              <p className="text-destructive">
+                Este enlace está incompleto o se partió en el correo. Pedí uno nuevo desde recuperar
+                contraseña.
+              </p>
+              <Link to="/forgot-password" className="text-primary hover:underline">
+                Solicitar un enlace nuevo
+              </Link>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Contraseña</Label>
@@ -64,6 +75,7 @@ export function ResetPasswordPage() {
               {loading ? "Guardando..." : "Guardar contraseña"}
             </Button>
           </form>
+          )}
           <p className="mt-4 text-center text-sm">
             <Link to="/login" className="text-primary hover:underline">Volver al login</Link>
           </p>

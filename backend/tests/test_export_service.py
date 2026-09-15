@@ -56,7 +56,9 @@ def test_export_claims_uses_single_repository_query():
     ):
         content, media, filename = service.export_claims(org_id, "csv")
 
-    mock_repo.list_all_with_insurance_and_patient.assert_called_once_with(org_id)
+    mock_repo.list_all_with_insurance_and_patient.assert_called_once_with(
+        org_id, professional_id=None,
+    )
     assert b"Perez, Juan" in content
     assert b"Sancor" in content
     assert media == "text/csv"

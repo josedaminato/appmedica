@@ -24,9 +24,16 @@ class HealthInsuranceAnalyticsService:
         self.insurances = HealthInsuranceRepository(db)
         self.claims = InsuranceClaimRepository(db)
 
-    def get_ranking(self, organization_id: uuid.UUID) -> InsuranceRankingResponse:
+    def get_ranking(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        professional_id: uuid.UUID | None = None,
+    ) -> InsuranceRankingResponse:
         catalog = {i.id: i for i in self.insurances.list_all(organization_id)}
-        rows = self.claims.list_all_with_insurance(organization_id)
+        rows = self.claims.list_all_with_insurance(
+            organization_id, professional_id=professional_id,
+        )
 
         by_insurance: dict[uuid.UUID, list[tuple[InsuranceClaim, str]]] = defaultdict(list)
         for claim, insurance in rows:

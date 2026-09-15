@@ -66,6 +66,10 @@ export function createAppointment(data: AppointmentPayload) {
   })
 }
 
+export function getAppointment(id: string) {
+  return apiRequest<Appointment>(`/appointments/${id}`)
+}
+
 export function confirmAppointment(id: string) {
   return apiRequest<Appointment>(`/appointments/${id}/confirm`, { method: "POST" })
 }

@@ -195,6 +195,10 @@ class AppointmentService:
             raise bad_request("No se puede editar este turno")
 
         updates = data.model_dump(exclude_unset=True)
+        time_changed = (
+            ("start_at" in updates and updates["start_at"] is not None)
+            or ("end_at" in updates and updates["end_at"] is not None)
+        )
         if "patient_id" in updates and updates["patient_id"] is not None:
             self.tenant.require_patient(organization_id, updates["patient_id"])
             appointment.patient_id = updates["patient_id"]
@@ -245,6 +249,9 @@ class AppointmentService:
         except Exception:
             self.db.rollback()
             raise
+
+        if time_changed:
+            ReminderService(self.db).schedule_for_appointment(organization_id, appointment_id)
 
         return self.get_appointment(organization_id, appointment_id)
 

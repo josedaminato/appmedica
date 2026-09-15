@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Query, status
 
 from app.core.dependencies import CurrentUser, DbSession
+from app.core.rbac import resolve_professional_filter
 from app.schemas.health_insurance import (
     HealthInsuranceCreate,
     HealthInsuranceResponse,
@@ -20,7 +21,10 @@ def get_insurance_ranking(
     current_user: CurrentUser,
     db: DbSession,
 ) -> InsuranceRankingResponse:
-    return HealthInsuranceAnalyticsService(db).get_ranking(current_user.organization_id)
+    professional_id = resolve_professional_filter(current_user, None)
+    return HealthInsuranceAnalyticsService(db).get_ranking(
+        current_user.organization_id, professional_id=professional_id,
+    )
 
 
 @router.get("", response_model=list[HealthInsuranceResponse])
