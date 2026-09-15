@@ -130,7 +130,7 @@ export function ResolveAppointmentsPage() {
       invalidateAll(qc)
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Error al cerrar turno")
+      setActionError(err instanceof ApiError ? err.message : "Error al registrar cobro")
     },
   })
 

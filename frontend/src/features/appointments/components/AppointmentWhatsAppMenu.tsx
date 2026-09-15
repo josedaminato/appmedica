@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom"
 import { MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,6 +10,7 @@ import {
 import {
   buildAppointmentWhatsAppMessage,
   buildWhatsAppHref,
+  isWhatsAppPhoneValid,
   type AppointmentWhatsAppKind,
 } from "@/lib/whatsapp"
 import type { Appointment } from "@/types/api"
@@ -29,6 +31,7 @@ export function AppointmentWhatsAppMenu({ appointment, orgName }: Props) {
   const phone = appointment.patient?.phone
   const firstName = appointment.patient?.first_name ?? ""
   const professionalName = appointment.professional?.full_name
+  const hasPhone = isWhatsAppPhoneValid(phone)
 
   const items = TEMPLATES.map((tpl) => ({
     ...tpl,
@@ -43,7 +46,30 @@ export function AppointmentWhatsAppMenu({ appointment, orgName }: Props) {
     ),
   })).filter((item) => item.href)
 
-  if (items.length === 0) return null
+  if (!hasPhone) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-muted-foreground"
+            aria-label="WhatsApp: el paciente no tiene teléfono"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            WhatsApp
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem asChild>
+            <Link to={`/patients/${appointment.patient_id}`}>
+              Sin teléfono · cargar en ficha
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
 
   return (
     <DropdownMenu>

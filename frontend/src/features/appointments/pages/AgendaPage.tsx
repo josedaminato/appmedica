@@ -284,7 +284,7 @@ export function AgendaPage() {
       invalidateAll(qc)
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Error al cerrar turno")
+      setActionError(err instanceof ApiError ? err.message : "Error al registrar cobro")
     },
   })
 
@@ -350,7 +350,7 @@ export function AgendaPage() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => setCalendarOpen(true)}>
               <Calendar className="h-4 w-4 mr-1" />
-              Calendario
+              Sincronizar calendario
             </Button>
             <Button size="sm" asChild>
               <Link to="/agenda/new"><Plus className="h-4 w-4 mr-1" />Nuevo turno</Link>
@@ -687,55 +687,46 @@ function AppointmentRow({
         </p>
       </div>
 
-      {(actions.length > 0 || a.patient?.phone) && (
-        <>
-          <div className="hidden shrink-0 flex-wrap items-center gap-1 sm:flex">
-            <AppointmentWhatsAppMenu appointment={a} orgName={orgName} />
-            {actions.map((action) => (
-              <ActionButton key={action.id} action={action} disabled={actionPending} onAction={onAction} />
-            ))}
-          </div>
-          <div className="flex shrink-0 items-center gap-2 sm:hidden">
-            <AppointmentWhatsAppMenu appointment={a} orgName={orgName} />
-            {primary && (
-              <ActionButton action={primary} disabled={actionPending} onAction={onAction} />
-            )}
-            {secondary.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline" disabled={actionPending} aria-label="Más acciones">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  {secondary.map((action) =>
-                    action.href ? (
-                      <DropdownMenuItem key={action.id} asChild>
-                        <a
-                          href={action.href}
-                          target={action.external ? "_blank" : undefined}
-                          rel={action.external ? "noopener noreferrer" : undefined}
-                        >
-                          {action.label}
-                        </a>
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        key={action.id}
-                        disabled={actionPending}
-                        className={action.id === "cancel" ? "text-destructive focus:text-destructive" : undefined}
-                        onClick={() => onAction(action.id)}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <AppointmentWhatsAppMenu appointment={a} orgName={orgName} />
+          {primary && (
+            <ActionButton action={primary} disabled={actionPending} onAction={onAction} />
+          )}
+          {secondary.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" disabled={actionPending} aria-label="Más acciones">
+                  <MoreHorizontal className="h-4 w-4" />
+                  Más
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {secondary.map((action) =>
+                  action.href ? (
+                    <DropdownMenuItem key={action.id} asChild>
+                      <a
+                        href={action.href}
+                        target={action.external ? "_blank" : undefined}
+                        rel={action.external ? "noopener noreferrer" : undefined}
                       >
                         {action.label}
-                      </DropdownMenuItem>
-                    ),
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </>
-      )}
+                      </a>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      key={action.id}
+                      disabled={actionPending}
+                      className={action.id === "cancel" ? "text-destructive focus:text-destructive" : undefined}
+                      onClick={() => onAction(action.id)}
+                    >
+                      {action.label}
+                    </DropdownMenuItem>
+                  ),
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
     </div>
   )
 }

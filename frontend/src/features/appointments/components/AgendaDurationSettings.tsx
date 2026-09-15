@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Clock, DollarSign } from "lucide-react"
+import { ChevronDown, Clock, DollarSign } from "lucide-react"
 import { useAuth } from "@/features/auth/AuthContext"
 import {
   getOrganizationSettings,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { DurationPicker } from "./DurationPicker"
 import { ApiError } from "@/lib/api-client"
+import { cn } from "@/lib/utils"
 import { formatMoney } from "@/lib/format"
 
 function parseAmountInput(raw: string): number | null {
@@ -55,6 +56,7 @@ export function AgendaDurationSettings() {
   const [sessionAmount, setSessionAmount] = useState("")
   const [savedMessage, setSavedMessage] = useState("")
   const [error, setError] = useState("")
+  const [expanded, setExpanded] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ["org-settings"],
@@ -97,8 +99,38 @@ export function AgendaDurationSettings() {
 
   if (user?.role !== "owner") return null
 
+  const amountLabel =
+    data?.default_private_session_amount != null
+      ? formatMoney(data.default_private_session_amount)
+      : "valor por turno"
+  const compactSummary = isLoading
+    ? "Cargando…"
+    : data
+      ? `${data.default_appointment_duration_minutes} min · ${amountLabel}`
+      : ""
+
   return (
-    <div className="mb-4 rounded-lg border bg-muted/30 p-4 space-y-6">
+    <div className="mb-4 rounded-lg border bg-muted/30">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className="min-w-0 text-sm">
+          <span className="font-medium">Duración y valor</span>
+          {compactSummary ? (
+            <span className="text-muted-foreground"> · {compactSummary}</span>
+          ) : null}
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+          {expanded ? "Ocultar" : "Cambiar"}
+          <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+        </span>
+      </button>
+
+      {expanded && (
+        <div className="space-y-6 border-t px-4 pb-4 pt-4">
       <div>
         <h3 className="text-sm font-medium">Configuración del consultorio</h3>
         <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
@@ -193,6 +225,8 @@ export function AgendaDurationSettings() {
           {savedMessage && <FeedbackBanner message={savedMessage} variant="success" />}
           {error && <FeedbackBanner message={error} variant="error" />}
         </>
+      )}
+        </div>
       )}
     </div>
   )

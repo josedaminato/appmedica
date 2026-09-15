@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { Link, useNavigate } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertCircle,
   Calendar,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/shared/PageHeader"
 import { LoadingSkeleton } from "@/components/shared/LoadingSkeleton"
 import { QueryErrorState } from "@/components/shared/QueryErrorState"
+import { FeedbackBanner } from "@/components/shared/FeedbackBanner"
 import { listHealthInsurances } from "@/features/insurances/api"
 import { listPatients } from "@/features/patients/api"
 import { OnboardingChecklist } from "./components/OnboardingChecklist"
@@ -24,12 +25,22 @@ import { PendingTasks } from "./components/PendingTasks"
 import { AppointmentStatusBadge, AttentionTypeBadge } from "@/components/shared/StatusBadge"
 import { formatMoney, formatTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { ApiError } from "@/lib/api-client"
 import { useAuth } from "@/features/auth/AuthContext"
+import { useRoleScope } from "@/hooks/use-role-scope"
+import { canOpenClinicalAttention } from "@/features/appointments/appointmentRowActions"
+import { attendAppointment } from "@/features/appointments/api"
 import { getDashboardAlerts, getDashboardSummary } from "./api"
+import type { Appointment } from "@/types/api"
 
 export function DashboardPage() {
   const { user } = useAuth()
+  const { isStaff } = useRoleScope()
+  const navigate = useNavigate()
+  const qc = useQueryClient()
   const [showDetails, setShowDetails] = useState(false)
+  const [attendError, setAttendError] = useState("")
+  const [attendingId, setAttendingId] = useState<string | null>(null)
 
   const {
     data,
@@ -57,6 +68,23 @@ export function DashboardPage() {
     queryKey: ["insurances", "onboarding"],
     queryFn: () => listHealthInsurances(),
   })
+
+  async function handleAtender(appointment: Appointment) {
+    setAttendError("")
+    setAttendingId(appointment.id)
+    try {
+      if (appointment.status === "pending" || appointment.status === "confirmed") {
+        await attendAppointment(appointment.id)
+        await qc.invalidateQueries({ queryKey: ["dashboard"] })
+        await qc.invalidateQueries({ queryKey: ["appointments"] })
+      }
+      navigate(`/agenda/${appointment.id}/atencion`)
+    } catch (err) {
+      setAttendError(err instanceof ApiError ? err.message : "Error al atender")
+    } finally {
+      setAttendingId(null)
+    }
+  }
 
   if (isLoading) return <LoadingSkeleton rows={4} />
 
@@ -127,6 +155,7 @@ export function DashboardPage() {
           </Link>
         </CardHeader>
         <CardContent>
+          {attendError && <FeedbackBanner variant="error" message={attendError} />}
           {d.upcoming_appointments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No hay turnos próximos.</p>
           ) : (
@@ -134,21 +163,30 @@ export function DashboardPage() {
               {d.upcoming_appointments.map((a) => (
                 <li
                   key={a.id}
-                  className="flex items-center justify-between text-sm border-b last:border-0 pb-2 last:pb-0"
+                  className="flex flex-wrap items-center justify-between gap-2 text-sm border-b last:border-0 pb-2 last:pb-0"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <span className="font-medium">{formatTime(a.start_at)}</span>
                     {" — "}
                     <Link to={`/patients/${a.patient_id}`} className="hover:text-primary">
                       {a.patient?.last_name}, {a.patient?.first_name}
                     </Link>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                     <AttentionTypeBadge
                       attentionType={a.attention_type}
                       healthInsuranceName={a.health_insurance?.name}
                     />
                     <AppointmentStatusBadge status={a.status} />
+                    {canOpenClinicalAttention(a, !isStaff) && (
+                      <Button
+                        size="sm"
+                        onClick={() => void handleAtender(a)}
+                        disabled={attendingId === a.id}
+                      >
+                        Atender
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}

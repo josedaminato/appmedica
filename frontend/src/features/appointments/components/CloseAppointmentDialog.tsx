@@ -87,16 +87,19 @@ export function CloseAppointmentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cerrar turno</DialogTitle>
+          <DialogTitle>Registrar cobro</DialogTitle>
         </DialogHeader>
         {appointment?.patient && (
           <p className="text-sm text-muted-foreground -mt-2">
             {appointment.patient.last_name}, {appointment.patient.first_name}
           </p>
         )}
+        <p className="text-sm text-muted-foreground">
+          Elegí si ya cobraste, si queda pendiente de cobro o si corresponde a la obra social.
+        </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Resultado</Label>
+            <Label>Estado del cobro</Label>
             <Select value={closureType} onValueChange={(v) => setClosureType(v as AppointmentClosureStatus)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -145,7 +148,7 @@ export function CloseAppointmentDialog({
           )}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Guardando..." : "Cerrar turno"}
+            {loading ? "Guardando..." : "Confirmar"}
           </Button>
         </form>
       </DialogContent>

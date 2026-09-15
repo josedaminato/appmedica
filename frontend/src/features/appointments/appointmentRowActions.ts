@@ -40,7 +40,7 @@ export function buildAppointmentActions(
     actions.push({ id: "reschedule", label: "Reprogramar", variant: "ghost", primary: true })
   }
   if (needsClose) {
-    actions.push({ id: "close", label: "Cerrar", primary: true })
+    actions.push({ id: "close", label: "Registrar cobro", primary: true })
   }
   if (a.closure_status === "pending" || a.closure_status === "partial") {
     actions.push({
@@ -55,6 +55,11 @@ export function buildAppointmentActions(
   if (!withPrimary && actions.length > 0) actions[0].primary = true
 
   return actions
+}
+
+export function canOpenClinicalAttention(a: Appointment, allowClinical: boolean): boolean {
+  const needsClose = a.status === "attended" && a.closure_status === "none"
+  return buildAppointmentActions(a, needsClose, allowClinical).some((act) => act.id === "atender")
 }
 
 export function baseAppointment(overrides: Partial<Appointment> = {}): Appointment {

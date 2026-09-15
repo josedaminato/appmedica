@@ -188,8 +188,9 @@ export function AttentionPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Error al registrar la corrección"),
   })
 
+  if (isStaff) return <LoadingSkeleton rows={6} />
   if (consultationQuery.isLoading) return <LoadingSkeleton rows={6} />
-  if (consultationQuery.isError) {
+  if (consultationQuery.isError || !consultationQuery.data) {
     return (
       <QueryErrorState
         error={consultationQuery.error}
@@ -198,7 +199,7 @@ export function AttentionPage() {
     )
   }
 
-  const consultation = consultationQuery.data!
+  const consultation = consultationQuery.data
   const patient = patientQuery.data
   const isFinalized = consultation.status === "finalized"
   const canEdit = canEditConsultation(consultation, user)
@@ -344,16 +345,11 @@ export function AttentionPage() {
                 <Button onClick={() => setAmendOpen(true)}>Registrar corrección</Button>
                 {isAgendaFlow && appointment && appointment.closure_status === "none" && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Cobro</p>
+                    <p className="text-sm text-muted-foreground mb-2">Siguiente: cobro de este turno</p>
                     {appointment.expected_amount && (
                       <p className="text-lg font-semibold mb-3">{formatMoney(appointment.expected_amount)}</p>
                     )}
-                    <div className="flex flex-wrap gap-2">
-                      <Button onClick={() => setCloseOpen(true)}>Registrar cobro</Button>
-                      <Button variant="outline" onClick={() => setCloseOpen(true)}>
-                        Dejar pendiente
-                      </Button>
-                    </div>
+                    <Button onClick={() => setCloseOpen(true)}>Registrar cobro o dejar pendiente</Button>
                   </div>
                 )}
                 {isAgendaFlow && appointment && appointment.closure_status !== "none" && (
