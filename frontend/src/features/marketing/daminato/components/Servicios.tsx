@@ -17,8 +17,8 @@ const SERVICIOS = [
     description:
       "Diseñamos páginas web profesionales que transmiten confianza y facilitan el contacto con nuevos pacientes.",
     price: PRICING_AGENCY_COPY.web,
-    cta: "Ver ejemplos",
-    action: () => scrollToSection("contacto"),
+    cta: "Ver el sitio",
+    href: "https://pivotkinesiologia.com/",
   },
   {
     step: "03",
@@ -26,6 +26,7 @@ const SERVICIOS = [
     description:
       `${APP_NAME} organiza agenda, pacientes y obras sociales para que dejes las planillas y te enfoques en atender.`,
     price: `${PRICING_ARS.appMedicaMonthly}/mes por consultorio`,
+    priceNote: `Vigente a ${PRICING_ARS.appMedicaUpdated}`,
     cta: `Conocer ${APP_NAME}`,
     action: () => scrollToSection("appmedica"),
   },
@@ -49,13 +50,33 @@ export function Servicios() {
               <span className="service-card__badge">Paso {item.step}</span>
               <h3>{item.title}</h3>
               <p>{item.description}</p>
-              <p className="service-card__price">{item.price}</p>
-              <button type="button" className="btn btn--outline" onClick={item.action}>
-                {item.cta}
-              </button>
+              <p className="service-card__price">
+                {item.price}
+                {"priceNote" in item && item.priceNote ? (
+                  <span className="service-card__price-note">{item.priceNote}</span>
+                ) : null}
+              </p>
+              {"href" in item ? (
+                <a className="btn btn--outline" href={item.href} target="_blank" rel="noopener noreferrer">
+                  {item.cta}
+                </a>
+              ) : (
+                <button type="button" className="btn btn--outline" onClick={item.action}>
+                  {item.cta}
+                </button>
+              )}
             </article>
           ))}
         </div>
+
+        <p className="servicios__example fade-in">
+          El sitio de salud publicado hoy es{" "}
+          <a href="https://pivotkinesiologia.com/" target="_blank" rel="noopener noreferrer">
+            Pivot Kinesiología
+          </a>
+          , en San Juan. Es un caso real, no un listado de clientes. Más abajo, {APP_NAME} se muestra con datos de
+          ejemplo.
+        </p>
       </div>
     </section>
   )

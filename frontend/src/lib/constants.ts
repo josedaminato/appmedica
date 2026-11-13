@@ -29,6 +29,13 @@ export const BRAND_LOGOS = {
 export const SUPPORT_WHATSAPP_DISPLAY = "+54 9 11 2765-4198"
 export const SUPPORT_WHATSAPP_PHONE = "+5491127654198"
 export const SUPPORT_EMAIL = "contacto@daminatoweb.com"
+
+/** Perfil público y proyectos, para la landing y el pie. */
+export const PROFILE_LINKS = {
+  linkedin: "https://www.linkedin.com/in/daminatoweb",
+  instagram: "https://www.instagram.com/daminatoweb?igsh=MzlnZzRoZDIzMnBm",
+  appMedicaRepo: "https://github.com/josedaminato/appmedica",
+} as const
 export const SUPPORT_WHATSAPP_PREFILL =
   "Hola, necesito ayuda urgente con AppMédica."
 
@@ -38,6 +45,8 @@ export const SUPPORT_WHATSAPP_PREFILL =
  */
 export const PRICING_ARS = {
   appMedicaMonthly: "$25.000",
+  /** Mes en que se confirmó el precio público en la web. */
+  appMedicaUpdated: "noviembre 2026",
 } as const
 
 /** Servicios de agencia: presupuesto a medida (sin cifra fija en la web). */

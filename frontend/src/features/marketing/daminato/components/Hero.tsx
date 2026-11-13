@@ -11,7 +11,7 @@ export function Hero() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 md:py-32 relative z-20 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-14 items-center">
-          <div className="fade-in text-center lg:text-left order-2 lg:order-1">
+          <div className="fade-in text-center lg:text-left order-1">
             <p className="hero__badge animate-hero-title">Marketing digital + gestión para salud</p>
             <h1 className="animate-hero-title text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-dark mb-5 sm:mb-6 leading-tight px-2 sm:px-0 lg:px-0 break-words">
               Conseguí más pacientes para tu consultorio sin depender del boca en boca.
@@ -35,9 +35,12 @@ export function Hero() {
                 Ver cómo funciona
               </button>
             </div>
+            <p className="mt-4 text-sm text-gray-500 max-w-xl mx-auto lg:mx-0 px-2 sm:px-0 leading-relaxed">
+              Los resultados dependen de la especialidad, la zona y la inversión.
+            </p>
           </div>
 
-          <div className="fade-in order-1 lg:order-2">
+          <div className="fade-in order-2">
             <HeroVisual />
           </div>
         </div>

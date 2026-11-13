@@ -17,7 +17,7 @@ export function PrivacyPage() {
       </header>
       <main className="mx-auto max-w-3xl px-4 py-10 prose prose-slate">
         <h1>Política de privacidad</h1>
-        <p className="text-sm text-gray-600">Última actualización: junio 2026</p>
+        <p className="text-sm text-gray-600">Última actualización: noviembre 2026</p>
         <p>
           {APP_NAME} y Daminato Web tratan datos de consultorios y pacientes con fines exclusivamente administrativos
           (agenda, pagos registrados, obras sociales). No reemplaza historia clínica ni diagnóstico médico.
@@ -27,6 +27,10 @@ export function PrivacyPage() {
           <li>Datos del consultorio y usuarios (nombre, email, rol).</li>
           <li>Datos administrativos de pacientes cargados por el profesional (nombre, DNI, contacto, obra social).</li>
           <li>Información de turnos, pagos registrados y reclamos a obras sociales.</li>
+          <li>
+            Datos del formulario de contacto del sitio (nombre, especialidad, ciudad, WhatsApp y el pedido). El
+            formulario no los guarda en un servidor: arma un mensaje de WhatsApp para responder la consulta.
+          </li>
         </ul>
         <h2>Cómo los usamos</h2>
         <p>Para operar el software contratado, dar soporte y mejorar el servicio. No vendemos datos a terceros.</p>

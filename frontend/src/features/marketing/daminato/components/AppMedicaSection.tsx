@@ -15,6 +15,24 @@ const APP_FEATURES = [
 
 const SPECIALTIES = ["Médicos clínicos", "Psicólogos", "Nutricionistas", "Odontólogos", "Kinesiólogos", "Traumatólogos"] as const
 
+const APP_TOUR = [
+  {
+    src: "/images/appmedica/agenda.png",
+    title: "Agenda",
+    alt: "Agenda de AppMédica con turnos de ejemplo: estados, obra social y cierre del turno",
+  },
+  {
+    src: "/images/appmedica/pacientes.png",
+    title: "Pacientes",
+    alt: "Listado de pacientes de AppMédica con nombres, DNI y teléfonos de ejemplo",
+  },
+  {
+    src: "/images/appmedica/reportes.png",
+    title: "Reportes",
+    alt: "Reportes mensuales de AppMédica con turnos y cobros de ejemplo",
+  },
+] as const
+
 export function AppMedicaSection() {
   return (
     <section id="appmedica" className="section appmedica" aria-labelledby="appmedica-title">
@@ -32,6 +50,9 @@ export function AppMedicaSection() {
             </p>
             <p className="appmedica__note font-semibold text-[var(--color-primary)]">
               {PRICING_ARS.appMedicaMonthly}/mes por consultorio · pesos argentinos
+              <span className="block font-medium text-[var(--color-gray-500)] mt-1">
+                Precio vigente a {PRICING_ARS.appMedicaUpdated}
+              </span>
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <button type="button" className="btn btn--primary btn--lg" onClick={() => scrollToSection("contacto")}>
@@ -65,6 +86,22 @@ export function AppMedicaSection() {
                 </span>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="app-tour fade-in" id="appmedica-en-accion">
+          <h3 className="app-tour__title">{APP_NAME} en acción</h3>
+          <p className="app-tour__lead">
+            Un recorrido por la agenda, los pacientes y los reportes. La interfaz es la real; los nombres, documentos y
+            montos son datos de ejemplo.
+          </p>
+          <div className="app-tour__grid">
+            {APP_TOUR.map((shot) => (
+              <figure key={shot.src} className="app-tour__shot">
+                <img src={shot.src} alt={shot.alt} />
+                <figcaption>{shot.title}</figcaption>
+              </figure>
+            ))}
           </div>
         </div>
       </div>

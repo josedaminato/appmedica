@@ -8,6 +8,7 @@ import { Planes } from "../daminato/components/Planes"
 import { Problema } from "../daminato/components/Problema"
 import { Process } from "../daminato/components/Process"
 import { Servicios } from "../daminato/components/Servicios"
+import { SobreMi } from "../daminato/components/SobreMi"
 import { WhatsAppFloat } from "../daminato/components/WhatsAppFloat"
 import { useDaminatoLanding } from "../hooks/useDaminatoLanding"
 import "../daminato-marketing.css"
@@ -31,6 +32,7 @@ export function LandingPage() {
         <Process />
         <Planes />
         <AppMedicaSection />
+        <SobreMi />
         <Contact />
         <FAQ />
       </main>

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import { DaminatoLogo } from "@/features/marketing/components/DaminatoLogo"
-import { APP_NAME, PLATFORM_LOGIN_PATH } from "@/lib/constants"
+import { APP_NAME, PLATFORM_LOGIN_PATH, PROFILE_LINKS } from "@/lib/constants"
 
 export function Footer() {
   return (
@@ -26,7 +26,7 @@ export function Footer() {
             <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Contacto</h3>
             <div className="flex space-x-4 justify-center sm:justify-start">
               <a
-                href="https://www.instagram.com/daminatoweb?igsh=MzlnZzRoZDIzMnBm"
+                href={PROFILE_LINKS.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-white transition-colors p-3 sm:p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -37,7 +37,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href="https://www.linkedin.com/in/daminatoweb"
+                href={PROFILE_LINKS.linkedin}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-400 hover:text-white transition-colors p-3 sm:p-2 min-w-[44px] min-h-[44px] flex items-center justify-center"

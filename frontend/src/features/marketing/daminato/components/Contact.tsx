@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import { generateWhatsAppUrl, WHATSAPP_MESSAGES } from "../utils/constants"
 
 export function Contact() {
@@ -106,6 +107,12 @@ export function Contact() {
             </svg>
             Quiero recibir una propuesta
           </button>
+          <p className="text-sm text-gray-500 text-center leading-relaxed">
+            El mensaje se abre en WhatsApp con los datos que completaste. Los uso solo para responderte.{" "}
+            <Link to="/privacidad" className="text-primary font-medium underline underline-offset-2">
+              Política de privacidad
+            </Link>
+          </p>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
