@@ -34,7 +34,6 @@ export const SUPPORT_EMAIL = "contacto@daminatoweb.com"
 export const PROFILE_LINKS = {
   linkedin: "https://www.linkedin.com/in/daminatoweb",
   instagram: "https://www.instagram.com/daminatoweb?igsh=MzlnZzRoZDIzMnBm",
-  appMedicaRepo: "https://github.com/josedaminato/appmedica",
 } as const
 export const SUPPORT_WHATSAPP_PREFILL =
   "Hola, necesito ayuda urgente con AppMédica."
