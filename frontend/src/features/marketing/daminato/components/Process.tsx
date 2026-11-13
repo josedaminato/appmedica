@@ -18,7 +18,7 @@ const STEPS = [
 
 export function Process() {
   return (
-    <section id="proceso" className="py-16 sm:py-20 md:py-24 border-t border-gray-100 bg-[#f4f4f5]">
+    <section id="proceso" className="scroll-mt-24 py-16 sm:py-20 md:py-24 border-t border-gray-100 bg-[#f4f4f5]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12 sm:mb-16 fade-in">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-dark mb-3 sm:mb-4 px-2">

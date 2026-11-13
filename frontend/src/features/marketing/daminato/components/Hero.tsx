@@ -29,7 +29,7 @@ export function Hero() {
               </button>
               <button
                 type="button"
-                onClick={() => scrollToSection("servicios")}
+                onClick={() => scrollToSection("proceso")}
                 className="inline-flex border-2 border-primary text-primary px-6 sm:px-8 py-3 sm:py-4 rounded-lg text-base sm:text-lg font-medium hover:bg-primary hover:text-white transition-all duration-300 w-full sm:w-auto text-center min-h-[48px] items-center justify-center"
               >
                 Ver cómo funciona
