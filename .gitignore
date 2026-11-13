@@ -1,9 +1,10 @@
-# Environment
-.env
-.env.local
-.env.prod
-backend/.env.prod
-**/.env.prod
+# Environment: ignore local secrets while keeping safe templates
+.env*
+!.env.example
+!.env.*.example
+**/.env*
+!**/.env.example
+!**/.env.*.example
 deploy/vps.local.env
 deploy/credentials.local.*
 
